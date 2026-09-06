@@ -139,28 +139,26 @@ export function clearCredentials(): void {
 export type CredentialCheck = "ok" | "unauthorized" | "unreachable";
 
 // A request with NO Authorization header at all, hitting an endpoint that
-// replies 401 + WWW-Authenticate: Basic, is exactly what makes some
-// browsers pop their own native Basic Auth dialog even for a plain
-// fetch() — the one thing this whole login screen exists to avoid. A
-// request that already carries *some* Authorization header, even a wrong
-// one, never triggers that. So LoginGate's "is auth even required?" probe
-// (called with header=null) uses this fixed placeholder instead of
-// omitting the header — it's guaranteed wrong, which is exactly what's
-// needed to tell "not configured" (200, header ignored) apart from
-// "configured, please log in" (401).
+// replies 401 + WWW-Authenticate: Basic, can make browsers open their own
+// native Basic Auth dialog — the one thing Aurum's branded login screen
+// exists to avoid. Even a deliberately wrong Authorization header is not
+// sufficient in every Chrome version, so nginx exposes /api/auth/check and
+// converts a failed challenge to a plain 403 without WWW-Authenticate. The
+// fixed placeholder remains useful for distinguishing "not configured"
+// (200, header ignored) from "configured, please log in" (403).
 const PROBE_HEADER = `Basic ${btoa("__aurum_probe__:__aurum_probe__")}`;
 
-/** Hits a lightweight, always-protected endpoint with the given header (or
- * none) to find out whether Basic Auth is required/satisfied. Used both to
- * skip the login screen entirely when this instance has no auth configured
- * (see LoginGate.tsx), and to validate a login attempt before saving it
- * (see LoginScreen.tsx). */
+/** Hits nginx's lightweight, challenge-free credential endpoint with the
+ * given header (or the guaranteed-wrong probe header) to find out whether
+ * Basic Auth is required/satisfied. Used both to skip the login screen
+ * entirely when this instance has no auth configured (see LoginGate.tsx),
+ * and to validate a login attempt before saving it (see LoginScreen.tsx). */
 export async function checkCredentials(header: string | null): Promise<CredentialCheck> {
   try {
-    const response = await fetch("/api/accounts", {
+    const response = await fetch("/api/auth/check", {
       headers: { Authorization: header ?? PROBE_HEADER },
     });
-    return response.status === 401 ? "unauthorized" : "ok";
+    return response.status === 401 || response.status === 403 ? "unauthorized" : "ok";
   } catch {
     return "unreachable";
   }

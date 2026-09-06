@@ -17,11 +17,11 @@ COPY docker-entrypoint.d/25-allowed-hosts.sh /docker-entrypoint.d/25-allowed-hos
 # scripts arrive as CRLF, the kernel reads the shebang as "/bin/sh\r", and
 # nginx dies on boot with "not found" (exit 127). .gitattributes fixes this
 # at the repository level; this line covers checkouts that predate it.
-# The empty .conf files matter: nginx.conf includes both unconditionally, and
+# The empty .conf files matter: nginx.conf includes them unconditionally, and
 # an include of a missing file is a startup error.
 RUN sed -i 's/\r$//' /docker-entrypoint.d/20-basic-auth.sh /docker-entrypoint.d/25-allowed-hosts.sh \
     && chmod +x /docker-entrypoint.d/20-basic-auth.sh /docker-entrypoint.d/25-allowed-hosts.sh \
-    && touch /etc/nginx/basic-auth.conf /etc/nginx/allowed-hosts.conf
+    && touch /etc/nginx/basic-auth.conf /etc/nginx/allowed-hosts.conf /etc/nginx/auth-check.conf
 
 EXPOSE 80
 
