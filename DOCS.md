@@ -79,8 +79,9 @@ update, and delete everything.
 - **Format:** all request and response bodies are JSON (`Content-Type: application/json`).
 - **IDs:** integer, auto-incrementing, assigned by the server.
 - **Money fields** (`amount`, `monthly_limit`, `value`, ...): decimal numbers as JSON numbers or
-  strings, up to 14 digits with 2 decimal places. Aurum is single-currency per account/asset — there
-  is no built-in FX conversion.
+  strings, up to 14 digits with 2 decimal places. Account transactions and asset valuations remain
+  in their native currency; cross-account aggregates are converted to the app currency with the
+  official NBP rate for the relevant date.
 - **Dates:** `YYYY-MM-DD` (ISO 8601 date, no time component). Timestamps (e.g. backup `exported_at`)
   are full ISO 8601 datetimes.
 - **Colors:** 6-digit hex strings, e.g. `"#4f46e5"`.
@@ -101,7 +102,9 @@ Standard HTTP status codes:
 | `400` | Invalid request — a business rule was violated (e.g. wrong category kind, duplicate budget) |
 | `401` | Missing/invalid Basic Auth credentials (only when Basic Auth is configured) |
 | `404` | Resource not found |
+| `409` | The requested change would reinterpret existing financial history (for example changing a used account's currency) |
 | `422` | Request body failed schema validation (wrong type, missing required field, out-of-range value) |
+| `503` | An FX rate was not cached locally and NBP is temporarily unavailable |
 
 Error bodies follow FastAPI's default shape:
 
@@ -152,8 +155,8 @@ stored — there's no "set balance" endpoint.
 
 - `name`: required, 1–100 chars.
 - `type`: optional, defaults to `checking`.
-- `currency`: optional 3-letter code, defaults to `USD`. Purely a display label — not validated
-  against ISO 4217 and not used for conversion.
+- `currency`: optional 3-letter ISO-style code, defaults to `USD`; normalized to uppercase and used
+  for historical conversion. It cannot be changed after the account has transaction history.
 - `color`: optional hex color.
 - `is_archived` (update only): archive/unarchive without deleting. An archived account is hidden
   from the default account list but its transactions and balance remain intact.
@@ -282,6 +285,7 @@ The core resource. A transaction is `income`, `expense`, or `transfer`.
   "transfer_account_id": null,
   "type": "expense",
   "amount": 42.50,
+  "destination_amount": null,
   "description": "Groceries",
   "merchant": "Whole Foods",
   "notes": null,
@@ -299,6 +303,8 @@ Field rules, enforced server-side:
     must be omitted.
   - `transfer`: `transfer_account_id` is **required** and must differ from `account_id`.
     `category_id` must be omitted — transfers aren't categorized. `splits` aren't valid either.
+    For different account currencies, `destination_amount` is also required and records the amount
+    actually credited. For the same currency it is set to `amount` automatically.
 - `amount`: required, `> 0` (transfers/expenses aren't signed negative — direction comes from
   `type`), up to 14 digits, 2 decimal places.
 - `description`: required, 1–255 chars. Auto-capitalized server-side (first letter uppercased).
@@ -774,7 +780,11 @@ Single row, created automatically on first run — there's nothing to create, on
 
 - `app_version`: read-only, ignored on `PATCH` — the running app's release, shown in the UI under
   Settings. It lives here rather than on the unauthenticated `/health`.
-- `currency`: 3-letter uppercase code — display-only, no conversion.
+- `currency`: 3-letter uppercase base currency used by dashboard, reports, budgets, advice,
+  alerts, cash flow and net worth. Conversion uses PLN as the NBP pivot and historical daily rates;
+  weekend/holiday dates resolve to the latest earlier publication and are cached locally. It can
+  be changed only before the first transaction, budget, goal, or asset is created, avoiding
+  reinterpretation of already stored base-currency values.
 - `negative_cash_flow_threshold_months` / `net_worth_decline_threshold_months`: consecutive months
   before the corresponding alert fires (`1`–`24`).
 - `risky_allocation_threshold_percent`: max % of total capital allowed in medium/high risk tiers
@@ -784,8 +794,8 @@ Single row, created automatically on first run — there's nothing to create, on
 
 ## Backup & Restore
 
-A full snapshot of every table as one JSON document — the same mechanism the in-app Settings →
-Backup & Restore uses. Good for scripted off-site backups, or for migrating data programmatically.
+A full snapshot of every table — including the local historical FX cache — as one JSON document;
+the same mechanism the in-app Settings → Backup & Restore uses. Good for scripted off-site backups, or for migrating data programmatically.
 
 | Method | Path | Description |
 |---|---|---|

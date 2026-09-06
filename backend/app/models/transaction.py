@@ -26,6 +26,9 @@ class Transaction(Base, TimestampMixin):
     )
     # Always stored positive; `type` carries the sign/direction.
     amount: Mapped[Numeric] = mapped_column(Numeric(14, 2), nullable=False)
+    # Transfers need two native amounts when account currencies differ. For
+    # same-currency and legacy transfers this is equal to `amount`.
+    destination_amount: Mapped[Numeric | None] = mapped_column(Numeric(14, 2), nullable=True)
     description: Mapped[str] = mapped_column(String(255), nullable=False)
     merchant: Mapped[str | None] = mapped_column(String(150), nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)

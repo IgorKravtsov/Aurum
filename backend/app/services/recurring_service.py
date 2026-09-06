@@ -7,12 +7,14 @@ week never silently back-fills a pile of transactions.
 import calendar
 from datetime import date as date_
 from datetime import timedelta
+from decimal import Decimal
 
 from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.models.account import Account
 from app.models.category import Category
 from app.models.enums import CategoryKind, RecurringFrequency, TransactionType
 from app.models.recurring import RecurringTransaction
@@ -83,6 +85,7 @@ def _to_read(recurring: RecurringTransaction) -> RecurringTransactionRead:
         transfer_account_name=recurring.transfer_account.name if recurring.transfer_account else None,
         type=recurring.type,
         amount=recurring.amount,
+        destination_amount=recurring.destination_amount,
         description=recurring.description,
         merchant=recurring.merchant,
         notes=recurring.notes,
@@ -113,9 +116,49 @@ async def list_recurring(session: AsyncSession) -> list[RecurringTransactionRead
     return [_to_read(row) for row in result.scalars().all()]
 
 
+async def _normalise_destination_amount(
+    session: AsyncSession,
+    transaction_type: TransactionType,
+    account_id: int,
+    transfer_account_id: int | None,
+    amount: Decimal,
+    destination_amount: Decimal | None,
+) -> Decimal | None:
+    if transaction_type != TransactionType.TRANSFER:
+        if transfer_account_id is not None or destination_amount is not None:
+            raise HTTPException(status_code=400, detail="Transfer fields are only valid for transfers")
+        return None
+    if transfer_account_id is None or transfer_account_id == account_id:
+        raise HTTPException(status_code=400, detail="A distinct destination account is required")
+    rows = (
+        await session.execute(
+            select(Account.id, Account.currency).where(Account.id.in_([account_id, transfer_account_id]))
+        )
+    ).all()
+    currencies = {row.id: row.currency for row in rows}
+    if len(currencies) != 2:
+        raise HTTPException(status_code=400, detail="Transfer account not found")
+    if currencies[account_id] == currencies[transfer_account_id]:
+        if destination_amount is not None and destination_amount != amount:
+            raise HTTPException(status_code=400, detail="Same-currency transfer amounts must match")
+        return amount
+    if destination_amount is None:
+        raise HTTPException(status_code=400, detail="destination_amount is required for a cross-currency transfer")
+    return destination_amount
+
+
 async def create_recurring(session: AsyncSession, payload: RecurringTransactionCreate) -> RecurringTransactionRead:
     await _ensure_category_matches_type(session, payload.category_id, payload.type)
-    recurring = RecurringTransaction(**payload.model_dump())
+    fields = payload.model_dump()
+    fields["destination_amount"] = await _normalise_destination_amount(
+        session,
+        payload.type,
+        payload.account_id,
+        payload.transfer_account_id,
+        payload.amount,
+        payload.destination_amount,
+    )
+    recurring = RecurringTransaction(**fields)
     session.add(recurring)
     await session.commit()
     return _to_read(await _get_or_404(session, recurring.id))
@@ -129,6 +172,14 @@ async def update_recurring(
     effective_type = updates.get("type", recurring.type)
     effective_category_id = updates.get("category_id", recurring.category_id)
     await _ensure_category_matches_type(session, effective_category_id, effective_type)
+    updates["destination_amount"] = await _normalise_destination_amount(
+        session,
+        effective_type,
+        updates.get("account_id", recurring.account_id),
+        updates.get("transfer_account_id", recurring.transfer_account_id),
+        updates.get("amount", recurring.amount),
+        updates.get("destination_amount", recurring.destination_amount),
+    )
     for field, value in updates.items():
         setattr(recurring, field, value)
     await session.commit()
@@ -148,6 +199,14 @@ async def post_recurring(session: AsyncSession, recurring_id: int) -> RecurringT
     last_posted_date forward — the only thing that advances the schedule."""
     recurring = await _get_or_404(session, recurring_id)
     today = date_.today()
+    destination_amount = await _normalise_destination_amount(
+        session,
+        recurring.type,
+        recurring.account_id,
+        recurring.transfer_account_id,
+        recurring.amount,
+        recurring.destination_amount,
+    )
 
     session.add(
         Transaction(
@@ -156,6 +215,7 @@ async def post_recurring(session: AsyncSession, recurring_id: int) -> RecurringT
             transfer_account_id=recurring.transfer_account_id,
             type=recurring.type,
             amount=recurring.amount,
+            destination_amount=destination_amount,
             description=recurring.description,
             merchant=recurring.merchant,
             notes=recurring.notes,

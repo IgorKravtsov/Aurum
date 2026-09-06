@@ -55,7 +55,7 @@ export function AccountList({ items, onEdit, onToggleArchived, onDelete }: Accou
               className="shrink-0 text-sm font-medium tabular-nums"
               style={{ color: balance < 0 ? "var(--danger)" : "var(--text-primary)" }}
             >
-              {formatCurrency(balance)}
+              {formatCurrency(balance, account.currency)}
             </span>
             <span className="flex shrink-0 gap-1">
               <button

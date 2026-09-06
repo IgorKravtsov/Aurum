@@ -9,6 +9,7 @@ from sqlalchemy.orm import selectinload
 
 from app.api.deps import get_session
 from app.core.audit import log_destructive
+from app.models.account import Account
 from app.models.category import Category
 from app.models.enums import CategoryKind, TransactionType
 from app.models.tag import Tag
@@ -33,6 +34,39 @@ _EAGER = (
     selectinload(Transaction.tags),
     selectinload(Transaction.splits).selectinload(TransactionSplit.category),
 )
+
+
+async def _normalise_destination_amount(
+    session: AsyncSession,
+    *,
+    transaction_type: TransactionType,
+    account_id: int,
+    transfer_account_id: int | None,
+    amount: Decimal,
+    destination_amount: Decimal | None,
+) -> Decimal | None:
+    """Makes transfer legs explicit: same-currency transfers always move the
+    same amount, while cross-currency transfers must record what actually
+    reached the destination account."""
+    if transaction_type != TransactionType.TRANSFER:
+        return None
+    if transfer_account_id is None:
+        return destination_amount
+    rows = (
+        await session.execute(
+            select(Account.id, Account.currency).where(Account.id.in_([account_id, transfer_account_id]))
+        )
+    ).all()
+    currencies = {row.id: row.currency for row in rows}
+    if account_id not in currencies or transfer_account_id not in currencies:
+        raise HTTPException(status_code=400, detail="Transfer account not found")
+    if currencies[account_id] == currencies[transfer_account_id]:
+        if destination_amount is not None and destination_amount != amount:
+            raise HTTPException(status_code=400, detail="Same-currency transfer amounts must match")
+        return amount
+    if destination_amount is None:
+        raise HTTPException(status_code=400, detail="destination_amount is required for a cross-currency transfer")
+    return destination_amount
 
 
 async def _resolve_tags(session: AsyncSession, tag_ids: list[int]) -> list[Tag]:
@@ -197,6 +231,14 @@ async def list_transaction_years(session: AsyncSession = Depends(get_session)) -
 async def create_transaction(payload: TransactionCreate, session: AsyncSession = Depends(get_session)) -> Transaction:
     await _ensure_category_matches_type(session, payload.category_id, payload.type)
     fields = payload.model_dump(exclude={"tag_ids", "splits"})
+    fields["destination_amount"] = await _normalise_destination_amount(
+        session,
+        transaction_type=payload.type,
+        account_id=payload.account_id,
+        transfer_account_id=payload.transfer_account_id,
+        amount=payload.amount,
+        destination_amount=payload.destination_amount,
+    )
     transaction = Transaction(**fields)
     transaction.tags = await _resolve_tags(session, payload.tag_ids)
     if payload.splits:
@@ -221,7 +263,16 @@ async def bulk_create_transactions(
 
     transactions = []
     for item in payload.items:
-        transaction = Transaction(**item.model_dump(exclude={"tag_ids", "splits"}))
+        fields = item.model_dump(exclude={"tag_ids", "splits"})
+        fields["destination_amount"] = await _normalise_destination_amount(
+            session,
+            transaction_type=item.type,
+            account_id=item.account_id,
+            transfer_account_id=item.transfer_account_id,
+            amount=item.amount,
+            destination_amount=item.destination_amount,
+        )
+        transaction = Transaction(**fields)
         transaction.tags = await _resolve_tags(session, item.tag_ids)
         if item.splits:
             transaction.splits = await _build_splits(session, item.splits, item.type)
@@ -257,15 +308,25 @@ async def update_transaction(
     effective_account_id = updates.get("account_id", transaction.account_id)
     effective_transfer_account_id = updates.get("transfer_account_id", transaction.transfer_account_id)
     effective_amount = updates.get("amount", transaction.amount)
+    effective_destination_amount = updates.get("destination_amount", transaction.destination_amount)
     await _ensure_category_matches_type(session, effective_category_id, effective_type)
     violation = transfer_rule_violation(
         type=effective_type,
         account_id=effective_account_id,
         transfer_account_id=effective_transfer_account_id,
         category_id=effective_category_id,
+        destination_amount=effective_destination_amount,
     )
     if violation:
         raise HTTPException(status_code=400, detail=violation)
+    updates["destination_amount"] = await _normalise_destination_amount(
+        session,
+        transaction_type=effective_type,
+        account_id=effective_account_id,
+        transfer_account_id=effective_transfer_account_id,
+        amount=effective_amount,
+        destination_amount=effective_destination_amount,
+    )
 
     if payload.splits is not None:
         split_count = len(payload.splits)

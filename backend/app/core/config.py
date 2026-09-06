@@ -8,7 +8,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 # it in Settings; it deliberately does NOT ride on the unauthenticated
 # /api/health), and embedded in exported backups so an old file can be told
 # apart from a current one.
-APP_VERSION = "1.1.7"
+APP_VERSION = "1.2.0"
 
 
 class Settings(BaseSettings):
@@ -21,7 +21,7 @@ class Settings(BaseSettings):
     postgres_host: str = "db"
     postgres_port: int = 5432
 
-    # Default currency shown across the UI when an account doesn't override it
+    # Base currency used by every cross-account financial aggregate.
     default_currency: str = "USD"
 
     # Comma-separated list of browser origins allowed to call the API. Empty

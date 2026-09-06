@@ -1,6 +1,6 @@
 from decimal import Decimal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.models.enums import AccountType
 
@@ -8,8 +8,13 @@ from app.models.enums import AccountType
 class AccountBase(BaseModel):
     name: str = Field(min_length=1, max_length=100)
     type: AccountType = AccountType.CHECKING
-    currency: str = Field(default="USD", min_length=3, max_length=3)
+    currency: str = Field(default="USD", min_length=3, max_length=3, pattern=r"^[A-Za-z]{3}$")
     color: str | None = Field(default=None, pattern=r"^#[0-9a-fA-F]{6}$")
+
+    @field_validator("currency")
+    @classmethod
+    def _normalise_currency(cls, value: str) -> str:
+        return value.upper()
 
 
 class AccountCreate(AccountBase):
@@ -19,9 +24,14 @@ class AccountCreate(AccountBase):
 class AccountUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=100)
     type: AccountType | None = None
-    currency: str | None = Field(default=None, min_length=3, max_length=3)
+    currency: str | None = Field(default=None, min_length=3, max_length=3, pattern=r"^[A-Za-z]{3}$")
     color: str | None = Field(default=None, pattern=r"^#[0-9a-fA-F]{6}$")
     is_archived: bool | None = None
+
+    @field_validator("currency")
+    @classmethod
+    def _normalise_currency(cls, value: str | None) -> str | None:
+        return value.upper() if value is not None else None
 
 
 class AccountRead(AccountBase):

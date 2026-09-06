@@ -25,6 +25,7 @@ const EMPTY_FORM = {
   category_id: "",
   transfer_account_id: "",
   amount: "",
+  destination_amount: "",
   description: "",
   merchant: "",
   frequency: "monthly" as RecurringFrequency,
@@ -50,6 +51,7 @@ export function RecurringFormModal({ open, onClose, recurring }: RecurringFormMo
         category_id: recurring.category_id ? String(recurring.category_id) : "",
         transfer_account_id: recurring.transfer_account_id ? String(recurring.transfer_account_id) : "",
         amount: recurring.amount,
+        destination_amount: recurring.destination_amount ?? "",
         description: recurring.description,
         merchant: recurring.merchant ?? "",
         frequency: recurring.frequency,
@@ -64,6 +66,14 @@ export function RecurringFormModal({ open, onClose, recurring }: RecurringFormMo
   const relevantCategories = (categories ?? []).filter((category) =>
     form.type === "income" ? category.kind === "income" : category.kind === "expense"
   );
+
+  const sourceAccount = accounts?.find((account) => String(account.id) === form.account_id);
+  const destinationAccount = accounts?.find((account) => String(account.id) === form.transfer_account_id);
+  const isCrossCurrencyTransfer =
+    form.type === "transfer" &&
+    sourceAccount != null &&
+    destinationAccount != null &&
+    sourceAccount.currency !== destinationAccount.currency;
 
   const isSaving = createRecurring.isPending || updateRecurring.isPending;
 
@@ -83,6 +93,10 @@ export function RecurringFormModal({ open, onClose, recurring }: RecurringFormMo
       setError(t("transactions.form.errorSameAccount"));
       return;
     }
+    if (isCrossCurrencyTransfer && (!form.destination_amount || Number(form.destination_amount) <= 0)) {
+      setError(t("transactions.form.errorDestinationAmount"));
+      return;
+    }
 
     const payload = {
       type: form.type,
@@ -90,6 +104,7 @@ export function RecurringFormModal({ open, onClose, recurring }: RecurringFormMo
       category_id: form.type === "transfer" ? null : form.category_id ? Number(form.category_id) : null,
       transfer_account_id: form.type === "transfer" ? Number(form.transfer_account_id) : null,
       amount: form.amount,
+      destination_amount: isCrossCurrencyTransfer ? form.destination_amount : null,
       description: form.description,
       merchant: form.merchant || null,
       frequency: form.frequency,
@@ -146,7 +161,9 @@ export function RecurringFormModal({ open, onClose, recurring }: RecurringFormMo
 
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <Label htmlFor="recurring-amount">{t("transactions.form.amountLabel")}</Label>
+            <Label htmlFor="recurring-amount">
+              {t("transactions.form.amountLabel")}{sourceAccount ? ` (${sourceAccount.currency})` : ""}
+            </Label>
             <Input
               id="recurring-amount"
               type="number"
@@ -193,7 +210,7 @@ export function RecurringFormModal({ open, onClose, recurring }: RecurringFormMo
             </option>
             {accounts?.map((account) => (
               <option key={account.id} value={account.id}>
-                {account.name}
+                {account.name} ({account.currency})
               </option>
             ))}
           </Select>
@@ -206,7 +223,13 @@ export function RecurringFormModal({ open, onClose, recurring }: RecurringFormMo
               id="recurring-transfer-account"
               required
               value={form.transfer_account_id}
-              onChange={(event) => setForm((prev) => ({ ...prev, transfer_account_id: event.target.value }))}
+              onChange={(event) =>
+                setForm((prev) => ({
+                  ...prev,
+                  transfer_account_id: event.target.value,
+                  destination_amount: "",
+                }))
+              }
             >
               <option value="" disabled>
                 {t("transactions.form.selectAccount")}
@@ -215,10 +238,28 @@ export function RecurringFormModal({ open, onClose, recurring }: RecurringFormMo
                 ?.filter((account) => String(account.id) !== form.account_id)
                 .map((account) => (
                   <option key={account.id} value={account.id}>
-                    {account.name}
+                    {account.name} ({account.currency})
                   </option>
                 ))}
             </Select>
+            {isCrossCurrencyTransfer && (
+              <div className="mt-3">
+                <Label htmlFor="recurring-destination-amount">
+                  {t("transactions.form.destinationAmountLabel")} ({destinationAccount.currency})
+                </Label>
+                <Input
+                  id="recurring-destination-amount"
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  required
+                  value={form.destination_amount}
+                  onChange={(event) =>
+                    setForm((prev) => ({ ...prev, destination_amount: event.target.value }))
+                  }
+                />
+              </div>
+            )}
           </div>
         ) : (
           <div>

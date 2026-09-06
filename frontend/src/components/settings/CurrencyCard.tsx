@@ -28,6 +28,7 @@ export function CurrencyCard() {
           ))}
         </Select>
         <p className="text-xs text-text-muted">{t("settings.currencyHint")}</p>
+        {updateSettings.isError && <p className="text-xs text-danger">{t("settings.currencyLocked")}</p>}
       </CardContent>
     </Card>
   );

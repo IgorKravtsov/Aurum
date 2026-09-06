@@ -92,6 +92,7 @@ export function CsvImportPage() {
   const [parseError, setParseError] = useState<string | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
   const [createdCount, setCreatedCount] = useState<number | null>(null);
+  const selectedAccount = accounts?.find((account) => String(account.id) === accountId);
 
   // Re-decoded whenever `encoding` changes, so picking a different encoding
   // on the map screen (because the auto-detected guess came out wrong)
@@ -588,7 +589,7 @@ export function CsvImportPage() {
                               }`}
                             >
                               {item.type === "expense" ? "-" : "+"}
-                              {formatCurrency(item.amount)}
+                              {formatCurrency(item.amount, selectedAccount?.currency)}
                             </td>
                           </tr>
                         ))}

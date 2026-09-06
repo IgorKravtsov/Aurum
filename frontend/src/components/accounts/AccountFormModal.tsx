@@ -3,6 +3,8 @@ import { Dialog } from "@/components/ui/Dialog";
 import { Button } from "@/components/ui/Button";
 import { Input, Label, Select } from "@/components/ui/Input";
 import { useCreateAccount, useUpdateAccount } from "@/hooks/useAccounts";
+import { useAppSettings } from "@/hooks/useSettings";
+import { CURRENCIES, getCurrencyLabel } from "@/lib/currency";
 import { useTranslation, type TranslationKey } from "@/lib/i18n";
 import type { Account, AccountType } from "@/types";
 
@@ -14,10 +16,11 @@ interface AccountFormModalProps {
 
 const ACCOUNT_TYPES: AccountType[] = ["checking", "debit_card", "savings", "credit_card", "cash", "investment", "other"];
 
-const EMPTY_FORM = { name: "", type: "checking" as AccountType };
+const EMPTY_FORM = { name: "", type: "checking" as AccountType, currency: "USD" };
 
 export function AccountFormModal({ open, onClose, account }: AccountFormModalProps) {
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
+  const { data: settings } = useAppSettings();
   const createAccount = useCreateAccount();
   const updateAccount = useUpdateAccount();
 
@@ -26,9 +29,13 @@ export function AccountFormModal({ open, onClose, account }: AccountFormModalPro
 
   useEffect(() => {
     if (!open) return;
-    setForm(account ? { name: account.name, type: account.type } : EMPTY_FORM);
+    setForm(
+      account
+        ? { name: account.name, type: account.type, currency: account.currency }
+        : { ...EMPTY_FORM, currency: settings?.currency ?? "USD" },
+    );
     setError(null);
-  }, [open, account]);
+  }, [open, account, settings?.currency]);
 
   const isSaving = createAccount.isPending || updateAccount.isPending;
 
@@ -72,6 +79,21 @@ export function AccountFormModal({ open, onClose, account }: AccountFormModalPro
             {ACCOUNT_TYPES.map((type) => (
               <option key={type} value={type}>
                 {t(`account.type.${type}` as TranslationKey)}
+              </option>
+            ))}
+          </Select>
+        </div>
+
+        <div>
+          <Label htmlFor="account-currency">{t("account.form.currencyLabel")}</Label>
+          <Select
+            id="account-currency"
+            value={form.currency}
+            onChange={(event) => setForm((prev) => ({ ...prev, currency: event.target.value }))}
+          >
+            {CURRENCIES.map((currency) => (
+              <option key={currency.code} value={currency.code}>
+                {getCurrencyLabel(currency.code, language)}
               </option>
             ))}
           </Select>

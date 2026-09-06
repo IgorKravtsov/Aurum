@@ -10,14 +10,14 @@ from collections import defaultdict
 from datetime import date
 from decimal import Decimal
 
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.budget import Budget
 from app.models.category import Category
 from app.models.enums import TransactionType
-from app.models.transaction import Transaction
 from app.schemas.advice import AdviceItem, AdviceResponse
+from app.services.category_rollup import category_contributions
 from app.services.dashboard_service import get_dashboard_summary
 
 TRAILING_MONTHS = 3
@@ -36,17 +36,13 @@ def _previous_month(year: int, month: int) -> tuple[int, int]:
 
 async def _category_expense_totals(session: AsyncSession, year: int, month: int) -> dict[int, Decimal]:
     start, end = _month_bounds(year, month)
-    stmt = (
-        select(Transaction.category_id, func.sum(Transaction.amount))
-        .where(
-            Transaction.type == TransactionType.EXPENSE,
-            Transaction.category_id.is_not(None),
-            Transaction.date >= start,
-            Transaction.date <= end,
-        )
-        .group_by(Transaction.category_id)
+    contributions = await category_contributions(
+        session, transaction_type=TransactionType.EXPENSE, start_date=start, end_date=end
     )
-    return {row[0]: row[1] for row in (await session.execute(stmt)).all()}
+    totals: dict[int, Decimal] = defaultdict(Decimal)
+    for contribution in contributions:
+        totals[contribution.category_id] += contribution.amount
+    return dict(totals)
 
 
 async def _rising_category_advice(session: AsyncSession, year: int, month: int) -> AdviceItem | None:

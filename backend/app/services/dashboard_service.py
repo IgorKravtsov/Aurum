@@ -3,13 +3,16 @@ import calendar
 from datetime import date
 from decimal import Decimal
 
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.account import Account
 from app.models.enums import TransactionType
 from app.models.transaction import Transaction
 from app.schemas.dashboard import CategoryBreakdownChildItem, CategoryBreakdownItem, DashboardSummary
 from app.services.category_rollup import rollup_spending_by_top_level_category
+from app.services.fx_service import MoneyAmount, convert_amounts
+from app.services.settings_service import get_or_create_app_settings
 
 # Categorical slots are capped at 8 (dataviz skill: a 9th series folds into "Other",
 # never a generated hue) — this is also the exact size of the default category set.
@@ -26,12 +29,20 @@ async def get_dashboard_summary(session: AsyncSession, year: int, month: int) ->
     start, end = _month_bounds(year, month)
 
     totals_stmt = (
-        select(Transaction.type, func.coalesce(func.sum(Transaction.amount), 0))
+        select(Transaction.type, Transaction.amount, Transaction.date, Account.currency)
+        .join(Account, Account.id == Transaction.account_id)
         .where(Transaction.date >= start, Transaction.date <= end)
-        .group_by(Transaction.type)
     )
-    totals_result = await session.execute(totals_stmt)
-    totals: dict[TransactionType, Decimal] = {row[0]: row[1] for row in totals_result.all()}
+    rows = (await session.execute(totals_stmt)).all()
+    settings = await get_or_create_app_settings(session)
+    converted = await convert_amounts(
+        session,
+        [MoneyAmount(index, row.amount, row.currency, row.date) for index, row in enumerate(rows)],
+        settings.currency,
+    )
+    totals: dict[TransactionType, Decimal] = {}
+    for index, row in enumerate(rows):
+        totals[row.type] = totals.get(row.type, Decimal("0")) + converted[index]
 
     real_income = totals.get(TransactionType.INCOME, Decimal("0"))
     spent = totals.get(TransactionType.EXPENSE, Decimal("0"))

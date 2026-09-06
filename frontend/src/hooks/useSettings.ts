@@ -14,6 +14,9 @@ export function useUpdateAppSettings() {
     onSuccess: (data) => {
       queryClient.setQueryData(["settings"], data);
       setCurrency(data.currency);
+      // Every financial aggregate is returned in the configured display
+      // currency, so changing it invalidates more than the formatter label.
+      queryClient.invalidateQueries({ predicate: (query) => query.queryKey[0] !== "settings" });
     },
   });
 }

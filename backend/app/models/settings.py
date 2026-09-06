@@ -1,7 +1,7 @@
 """App-wide configuration that isn't tied to any single account/asset — a
-single-row table (id is always 1). Primary display currency (see UPDATES.md
-for why this doesn't do currency conversion) and the proactive-alert
-thresholds consumed by services/insights_service.py."""
+single-row table (id is always 1). Primary display currency is the target
+for historical conversion in services/fx_service.py; the remaining fields
+are proactive-alert thresholds consumed by services/insights_service.py."""
 from decimal import Decimal
 
 from sqlalchemy import Integer, Numeric, String

@@ -23,6 +23,7 @@ from app.models.asset import Asset, AssetValuation
 from app.models.budget import Budget
 from app.models.category import Category
 from app.models.crypto import CryptoHolding, CryptoPortfolio, CryptoTransaction
+from app.models.fx import FxRate
 from app.models.goal import Goal, GoalContribution
 from app.models.recurring import RecurringTransaction
 from app.models.settings import AppSettings
@@ -39,6 +40,7 @@ from app.schemas.backup import (
     CryptoHoldingBackup,
     CryptoPortfolioBackup,
     CryptoTransactionBackup,
+    FxRateBackup,
     GoalBackup,
     GoalContributionBackup,
     RecurringTransactionBackup,
@@ -67,6 +69,7 @@ async def build_backup(session: AsyncSession) -> BackupPayload:
     goals = (await session.execute(select(Goal))).scalars().all()
     goal_contributions = (await session.execute(select(GoalContribution))).scalars().all()
     recurring_transactions = (await session.execute(select(RecurringTransaction))).scalars().all()
+    fx_rates = (await session.execute(select(FxRate))).scalars().all()
     app_settings = await session.get(AppSettings, 1)
 
     return BackupPayload(
@@ -92,6 +95,7 @@ async def build_backup(session: AsyncSession) -> BackupPayload:
         goals=[GoalBackup.model_validate(row) for row in goals],
         goal_contributions=[GoalContributionBackup.model_validate(row) for row in goal_contributions],
         recurring_transactions=[RecurringTransactionBackup.model_validate(row) for row in recurring_transactions],
+        fx_rates=[FxRateBackup.model_validate(row) for row in fx_rates],
         app_settings=AppSettingsBackup.model_validate(app_settings) if app_settings else AppSettingsBackup(currency="USD"),
     )
 
@@ -192,7 +196,9 @@ async def restore_backup(session: AsyncSession, payload: BackupPayload) -> None:
     _validate_references(payload)
 
     try:
-        # Children before parents.
+        # Children before parents. FX rates have no relationships, but are
+        # replaced too because this operation promises a full snapshot.
+        await session.execute(delete(FxRate))
         await session.execute(delete(AssetValuation))
         await session.execute(delete(CryptoTransaction))
         await session.execute(delete(CryptoHolding))
@@ -267,6 +273,7 @@ async def restore_backup(session: AsyncSession, payload: BackupPayload) -> None:
         session.add_all(Goal(**row.model_dump()) for row in payload.goals)
         session.add_all(GoalContribution(**row.model_dump()) for row in payload.goal_contributions)
         session.add_all(RecurringTransaction(**row.model_dump()) for row in payload.recurring_transactions)
+        session.add_all(FxRate(**row.model_dump()) for row in payload.fx_rates)
         await session.flush()
 
         for row in payload.transactions:
@@ -291,6 +298,7 @@ async def restore_backup(session: AsyncSession, payload: BackupPayload) -> None:
         await _reset_sequence(session, "goals", payload.goals)
         await _reset_sequence(session, "goal_contributions", payload.goal_contributions)
         await _reset_sequence(session, "recurring_transactions", payload.recurring_transactions)
+        await _reset_sequence(session, "fx_rates", payload.fx_rates)
 
         # Singleton row — updated in place, not deleted/recreated (no
         # sequence to reset, id is always 1).

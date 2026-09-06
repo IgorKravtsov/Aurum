@@ -16,6 +16,7 @@ def transfer_rule_violation(
     account_id: int,
     transfer_account_id: int | None,
     category_id: int | None,
+    destination_amount: Decimal | None,
 ) -> str | None:
     """The transfer invariants in one place, returning the problem as text or
     None if the combination is valid.
@@ -36,6 +37,8 @@ def transfer_rule_violation(
             return "category_id is not valid for transfer transactions"
     elif transfer_account_id:
         return "transfer_account_id is only valid for transfer transactions"
+    elif destination_amount is not None:
+        return "destination_amount is only valid for transfer transactions"
     return None
 
 
@@ -84,6 +87,7 @@ class TransactionFields(BaseModel):
     transfer_account_id: int | None = None
     type: TransactionType
     amount: Decimal = Field(gt=0, max_digits=14, decimal_places=2)
+    destination_amount: Decimal | None = Field(default=None, gt=0, max_digits=14, decimal_places=2)
     description: str = Field(min_length=1, max_length=255)
     merchant: str | None = Field(default=None, max_length=150)
     notes: str | None = Field(default=None, max_length=2000)
@@ -108,6 +112,7 @@ class TransactionBase(TransactionFields):
             account_id=self.account_id,
             transfer_account_id=self.transfer_account_id,
             category_id=self.category_id,
+            destination_amount=self.destination_amount,
         )
         if violation:
             raise ValueError(violation)
@@ -150,6 +155,7 @@ class TransactionUpdate(BaseModel):
     transfer_account_id: int | None = None
     type: TransactionType | None = None
     amount: Decimal | None = Field(default=None, gt=0, max_digits=14, decimal_places=2)
+    destination_amount: Decimal | None = Field(default=None, gt=0, max_digits=14, decimal_places=2)
     description: str | None = Field(default=None, min_length=1, max_length=255)
     merchant: str | None = Field(default=None, max_length=150)
     notes: str | None = Field(default=None, max_length=2000)

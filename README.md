@@ -58,7 +58,7 @@ Aurum treats your financial life as a **system**, not a spreadsheet.
 ## 🧩 Core Features
 
 ### 💰 Cash Flow & Transactions
-Log income, expenses, and transfers across as many accounts as you want, organized into categories (with one level of subcategories) plus free-form tags, and searchable. One purchase spanning multiple subcategories of the same parent (a grocery receipt part "Sweets", part "Alcohol") can be recorded as a single split transaction instead of several — every report and chart still counts each share under its own category. Already have history elsewhere? Import a bank's CSV export in a guided 3-step wizard instead of typing every line by hand. A dedicated Cash Flow view charts income vs. expense month by month.
+Log income, expenses, and transfers across as many accounts as you want, organized into categories (with one level of subcategories) plus free-form tags, and searchable. Accounts can use different currencies: reports convert each transaction at its historical daily NBP rate, while cross-currency transfers preserve both the debited and credited amounts. One purchase spanning multiple subcategories of the same parent (a grocery receipt part "Sweets", part "Alcohol") can be recorded as a single split transaction instead of several — every report and chart still counts each share under its own category. Already have history elsewhere? Import a bank's CSV export in a guided 3-step wizard instead of typing every line by hand. A dedicated Cash Flow view charts income vs. expense month by month.
 
 ### 📈 Net Worth Engine
 A live net worth timeline (30 days to all-time) aggregating cash and every manually tracked asset — investments, crypto, real estate, vehicles, precious metals — into one number, with a full breakdown by asset class, by how each asset behaves (income / neutral / drain), and by risk level.
@@ -175,6 +175,7 @@ or open `/api/docs` on your running instance for interactive Swagger docs.
 
 - If you leave `AURUM_BASIC_AUTH_USER` / `AURUM_BASIC_AUTH_PASSWORD` unset in `.env`, **anyone who can reach the container can read, edit, and delete all of it — no password prompt at all.** The app itself now says so on first load, with a warning you have to dismiss. This is fine if Aurum is only reachable from `localhost`.
 - Set both variables before exposing your instance beyond your own machine (a VPS, a subdomain, a Tailscale/VPN endpoint someone else might share). This turns on an HTTP Basic Auth prompt in front of the entire app, UI and API alike.
+- Currency conversion queries the official NBP Web API with only an ISO currency code and date range. Account names, balances, transaction amounts, descriptions, and other financial data are never sent; resolved rates are cached in your local PostgreSQL database.
 
 ### Two settings that decide who can reach you
 

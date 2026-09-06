@@ -14,7 +14,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.category import Category
 from app.models.enums import CategoryKind, TransactionType
-from app.models.transaction import Transaction, TransactionSplit
 from app.schemas.reports import (
     CategoryRankingChildItem,
     CategoryRankingItem,
@@ -22,7 +21,7 @@ from app.schemas.reports import (
     CategorySpendingPoint,
     CategorySpendingReport,
 )
-from app.services.category_rollup import rollup_spending_by_top_level_category
+from app.services.category_rollup import category_contributions, rollup_spending_by_top_level_category
 
 
 def _next_month(year: int, month: int) -> tuple[int, int]:
@@ -46,27 +45,16 @@ async def get_category_spending_report(
         ).scalars().all()
         category_ids.extend(child_ids)
 
-    # Plain transactions filed directly under one of these categories, plus
-    # split lines that assign part of a transaction to one of them — same
-    # two sources category_rollup.py unions for the Dashboard/ranking report.
-    plain_stmt = select(Transaction.id, Transaction.date, Transaction.amount).where(
-        Transaction.category_id.in_(category_ids)
+    # Plain and split transactions share the currency-aware contribution
+    # seam, so this detail report uses the same historical FX rates as the
+    # Dashboard, ranking, budgets and advice.
+    all_contributions = await category_contributions(
+        session,
+        transaction_type=_KIND_TO_TRANSACTION_TYPE[category.kind],
+        start_date=start_date,
+        end_date=end_date,
     )
-    split_stmt = (
-        select(TransactionSplit.transaction_id, Transaction.date, TransactionSplit.amount)
-        .join(Transaction, Transaction.id == TransactionSplit.transaction_id)
-        .where(TransactionSplit.category_id.in_(category_ids))
-    )
-    if start_date:
-        plain_stmt = plain_stmt.where(Transaction.date >= start_date)
-        split_stmt = split_stmt.where(Transaction.date >= start_date)
-    if end_date:
-        plain_stmt = plain_stmt.where(Transaction.date <= end_date)
-        split_stmt = split_stmt.where(Transaction.date <= end_date)
-
-    plain_rows = (await session.execute(plain_stmt)).all()
-    split_rows = (await session.execute(split_stmt)).all()
-    contributions = [(r[0], r[1], r[2]) for r in plain_rows] + [(r[0], r[1], r[2]) for r in split_rows]
+    contributions = [item for item in all_contributions if item.category_id in category_ids]
 
     empty = CategorySpendingReport(
         category_id=category.id,
@@ -83,19 +71,19 @@ async def get_category_spending_report(
     if not contributions:
         return empty
 
-    dates = [txn_date for _, txn_date, _ in contributions]
+    dates = [item.transaction_date for item in contributions]
     effective_start = start_date or min(dates)
     effective_end = end_date or max(dates)
 
     by_month: dict[tuple[int, int], Decimal] = defaultdict(Decimal)
-    for _, txn_date, amount in contributions:
-        by_month[(txn_date.year, txn_date.month)] += amount
+    for item in contributions:
+        by_month[(item.transaction_date.year, item.transaction_date.month)] += item.amount
 
-    total_amount = sum((amount for _, _, amount in contributions), Decimal("0"))
+    total_amount = sum((item.amount for item in contributions), Decimal("0"))
     # Distinct transactions, not rows — a transaction split across two of
     # these categories (e.g. parent + one of its children) must count once,
     # the same as a plain transaction filed under just one of them.
-    total_count = len({transaction_id for transaction_id, _, _ in contributions})
+    total_count = len({item.transaction_id for item in contributions})
 
     series: list[CategorySpendingPoint] = []
     year, month = effective_start.year, effective_start.month

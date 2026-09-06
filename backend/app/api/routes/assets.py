@@ -61,6 +61,11 @@ async def update_asset(asset_id: int, payload: AssetUpdate, session: AsyncSessio
     asset = result.scalar_one_or_none()
     if asset is None:
         raise HTTPException(status_code=404, detail="Asset not found")
+    if payload.currency is not None and payload.currency != asset.currency and asset.valuations:
+        raise HTTPException(
+            status_code=409,
+            detail="Asset currency cannot be changed after valuations have been recorded",
+        )
     for field, value in payload.model_dump(exclude_unset=True).items():
         setattr(asset, field, value)
     await session.commit()

@@ -7,12 +7,15 @@ from collections import defaultdict
 from datetime import date as date_
 from decimal import Decimal
 
-from sqlalchemy import extract, func, select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.account import Account
 from app.models.enums import TransactionType
 from app.models.transaction import Transaction
 from app.schemas.cash_flow import CashFlowPoint, CashFlowResponse
+from app.services.fx_service import MoneyAmount, convert_amounts
+from app.services.settings_service import get_or_create_app_settings
 
 
 def _next_month(year: int, month: int) -> tuple[int, int]:
@@ -46,24 +49,26 @@ async def get_cash_flow(
         return empty
 
     rows_stmt = (
-        select(
-            extract("year", Transaction.date).label("year"),
-            extract("month", Transaction.date).label("month"),
-            Transaction.type,
-            func.sum(Transaction.amount).label("amount"),
-        )
+        select(Transaction.date, Transaction.type, Transaction.amount, Account.currency)
+        .join(Account, Account.id == Transaction.account_id)
         .where(
             Transaction.type != TransactionType.TRANSFER,
             Transaction.date >= effective_start,
             Transaction.date <= effective_end,
         )
-        .group_by("year", "month", Transaction.type)
     )
     rows = (await session.execute(rows_stmt)).all()
+    settings = await get_or_create_app_settings(session)
+    converted = await convert_amounts(
+        session,
+        [MoneyAmount(index, row.amount, row.currency, row.date) for index, row in enumerate(rows)],
+        settings.currency,
+    )
 
     by_month: dict[tuple[int, int], dict[TransactionType, Decimal]] = defaultdict(dict)
-    for year, month, tx_type, amount in rows:
-        by_month[(int(year), int(month))][tx_type] = amount
+    for index, row in enumerate(rows):
+        key = (row.date.year, row.date.month)
+        by_month[key][row.type] = by_month[key].get(row.type, Decimal("0")) + converted[index]
 
     points: list[CashFlowPoint] = []
     year, month = effective_start.year, effective_start.month

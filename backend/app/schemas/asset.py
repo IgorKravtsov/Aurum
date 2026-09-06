@@ -1,7 +1,7 @@
 from datetime import date as date_
 from decimal import Decimal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.models.enums import AssetClass, CapitalRole, RiskLevel
 
@@ -22,8 +22,13 @@ class AssetValuationRead(BaseModel):
 class AssetBase(BaseModel):
     name: str = Field(min_length=1, max_length=150)
     asset_class: AssetClass
-    currency: str = Field(default="USD", min_length=3, max_length=3)
+    currency: str = Field(default="USD", min_length=3, max_length=3, pattern=r"^[A-Za-z]{3}$")
     notes: str | None = Field(default=None, max_length=2000)
+
+    @field_validator("currency")
+    @classmethod
+    def _normalise_currency(cls, value: str) -> str:
+        return value.upper()
     capital_role: CapitalRole = CapitalRole.NEUTRAL
     # Rough self-reported monthly net cash flow — informational, not tracked
     # transactions (see Asset.monthly_cash_flow).
@@ -39,8 +44,13 @@ class AssetCreate(AssetBase):
 class AssetUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=150)
     asset_class: AssetClass | None = None
-    currency: str | None = Field(default=None, min_length=3, max_length=3)
+    currency: str | None = Field(default=None, min_length=3, max_length=3, pattern=r"^[A-Za-z]{3}$")
     notes: str | None = Field(default=None, max_length=2000)
+
+    @field_validator("currency")
+    @classmethod
+    def _normalise_currency(cls, value: str | None) -> str | None:
+        return value.upper() if value is not None else None
     capital_role: CapitalRole | None = None
     monthly_cash_flow: Decimal | None = Field(default=None, max_digits=14, decimal_places=2)
     risk_level: RiskLevel | None = None

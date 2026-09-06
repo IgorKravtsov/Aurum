@@ -24,6 +24,7 @@ export interface AccountWithBalance extends Account {
 export interface AccountInput {
   name: string;
   type: AccountType;
+  currency: string;
 }
 
 export interface Category {
@@ -88,6 +89,7 @@ export interface Transaction {
   transfer_account_id: number | null;
   type: TransactionType;
   amount: string;
+  destination_amount: string | null;
   description: string;
   merchant: string | null;
   notes: string | null;
@@ -111,6 +113,7 @@ export interface TransactionInput {
   transfer_account_id: number | null;
   type: TransactionType;
   amount: string;
+  destination_amount?: string | null;
   description: string;
   merchant?: string | null;
   notes?: string | null;
@@ -137,6 +140,7 @@ export interface RecurringTransaction {
   transfer_account_name: string | null;
   type: TransactionType;
   amount: string;
+  destination_amount: string | null;
   description: string;
   merchant: string | null;
   notes: string | null;
@@ -155,6 +159,7 @@ export interface RecurringTransactionInput {
   transfer_account_id: number | null;
   type: TransactionType;
   amount: string;
+  destination_amount?: string | null;
   description: string;
   merchant?: string | null;
   frequency: RecurringFrequency;

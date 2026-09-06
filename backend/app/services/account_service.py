@@ -1,28 +1,35 @@
 """Account CRUD, plus each account's live balance — summed from its
 Transaction rows (income adds, expense subtracts, a transfer moves the
-amount from the source account to the destination account) rather than
-stored, the same "derive it, don't duplicate it" approach
+source amount out and the independently recorded destination amount in)
+rather than stored, the same "derive it, don't duplicate it" approach
 net_worth_service.py uses for Cash.
 """
 from collections import defaultdict
 from decimal import Decimal
 
 from fastapi import HTTPException
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.account import Account
 from app.models.enums import TransactionType
+from app.models.recurring import RecurringTransaction
 from app.models.transaction import Transaction
 from app.schemas.account import AccountCreate, AccountUpdate, AccountWithBalance
 
 
 async def _account_balances(session: AsyncSession) -> dict[int, Decimal]:
     result = await session.execute(
-        select(Transaction.type, Transaction.amount, Transaction.account_id, Transaction.transfer_account_id)
+        select(
+            Transaction.type,
+            Transaction.amount,
+            Transaction.destination_amount,
+            Transaction.account_id,
+            Transaction.transfer_account_id,
+        )
     )
     balances: dict[int, Decimal] = defaultdict(Decimal)
-    for tx_type, amount, account_id, transfer_account_id in result.all():
+    for tx_type, amount, destination_amount, account_id, transfer_account_id in result.all():
         if tx_type == TransactionType.INCOME:
             balances[account_id] += amount
         elif tx_type == TransactionType.EXPENSE:
@@ -30,7 +37,7 @@ async def _account_balances(session: AsyncSession) -> dict[int, Decimal]:
         elif tx_type == TransactionType.TRANSFER:
             balances[account_id] -= amount
             if transfer_account_id is not None:
-                balances[transfer_account_id] += amount
+                balances[transfer_account_id] += destination_amount or amount
     return balances
 
 
@@ -68,6 +75,31 @@ async def update_account(session: AsyncSession, account_id: int, payload: Accoun
     account = await session.get(Account, account_id)
     if account is None:
         raise HTTPException(status_code=404, detail="Account not found")
+    if payload.currency is not None and payload.currency != account.currency:
+        has_history = (
+            await session.execute(
+                select(Transaction.id)
+                .where(or_(Transaction.account_id == account_id, Transaction.transfer_account_id == account_id))
+                .limit(1)
+            )
+        ).scalar_one_or_none()
+        has_recurring_rule = (
+            await session.execute(
+                select(RecurringTransaction.id)
+                .where(
+                    or_(
+                        RecurringTransaction.account_id == account_id,
+                        RecurringTransaction.transfer_account_id == account_id,
+                    )
+                )
+                .limit(1)
+            )
+        ).scalar_one_or_none()
+        if has_history is not None or has_recurring_rule is not None:
+            raise HTTPException(
+                status_code=409,
+                detail="Account currency cannot be changed after transactions or recurring rules have been recorded",
+            )
     for field, value in payload.model_dump(exclude_unset=True).items():
         setattr(account, field, value)
     await session.commit()

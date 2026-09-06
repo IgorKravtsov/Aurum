@@ -28,6 +28,7 @@ const EMPTY_FORM = {
   category_id: "",
   transfer_account_id: "",
   amount: "",
+  destination_amount: "",
   description: "",
   merchant: "",
   notes: "",
@@ -99,6 +100,7 @@ export function TransactionFormModal({ open, onClose, transaction }: Transaction
             : "",
         transfer_account_id: transaction.transfer_account_id ? String(transaction.transfer_account_id) : "",
         amount: transaction.amount,
+        destination_amount: transaction.destination_amount ?? "",
         description: transaction.description,
         merchant: transaction.merchant ?? "",
         notes: transaction.notes ?? "",
@@ -132,6 +134,14 @@ export function TransactionFormModal({ open, onClose, transaction }: Transaction
   // name) so the hierarchy set up on the Categories page reads the same way
   // here.
   const relevantCategories = buildHierarchicalCategories(kindCategories, language);
+
+  const sourceAccount = accounts?.find((account) => String(account.id) === form.account_id);
+  const destinationAccount = accounts?.find((account) => String(account.id) === form.transfer_account_id);
+  const isCrossCurrencyTransfer =
+    form.type === "transfer" &&
+    sourceAccount != null &&
+    destinationAccount != null &&
+    sourceAccount.currency !== destinationAccount.currency;
 
   const isSaving = createTransaction.isPending || updateTransaction.isPending;
 
@@ -195,6 +205,10 @@ export function TransactionFormModal({ open, onClose, transaction }: Transaction
       setError(t("transactions.form.errorSameAccount"));
       return;
     }
+    if (isCrossCurrencyTransfer && (!form.destination_amount || Number(form.destination_amount) <= 0)) {
+      setError(t("transactions.form.errorDestinationAmount"));
+      return;
+    }
 
     // Undefined -> leave the transaction's existing splits untouched on
     // update, and create a normal single-category transaction. [] -> clears
@@ -240,6 +254,7 @@ export function TransactionFormModal({ open, onClose, transaction }: Transaction
             : null,
       transfer_account_id: form.type === "transfer" ? Number(form.transfer_account_id) : null,
       amount: form.amount,
+      destination_amount: isCrossCurrencyTransfer ? form.destination_amount : null,
       description: form.description,
       merchant: form.merchant || null,
       notes: form.notes || null,
@@ -286,7 +301,9 @@ export function TransactionFormModal({ open, onClose, transaction }: Transaction
 
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <Label htmlFor="amount">{t("transactions.form.amountLabel")}</Label>
+            <Label htmlFor="amount">
+              {t("transactions.form.amountLabel")}{sourceAccount ? ` (${sourceAccount.currency})` : ""}
+            </Label>
             <Input
               id="amount"
               type="number"
@@ -333,7 +350,7 @@ export function TransactionFormModal({ open, onClose, transaction }: Transaction
             </option>
             {accounts?.map((account) => (
               <option key={account.id} value={account.id}>
-                {account.name}
+                {account.name} ({account.currency})
               </option>
             ))}
           </Select>
@@ -346,7 +363,13 @@ export function TransactionFormModal({ open, onClose, transaction }: Transaction
               id="transfer_account"
               required
               value={form.transfer_account_id}
-              onChange={(event) => setForm((prev) => ({ ...prev, transfer_account_id: event.target.value }))}
+              onChange={(event) =>
+                setForm((prev) => ({
+                  ...prev,
+                  transfer_account_id: event.target.value,
+                  destination_amount: "",
+                }))
+              }
             >
               <option value="" disabled>
                 {t("transactions.form.selectAccount")}
@@ -355,10 +378,31 @@ export function TransactionFormModal({ open, onClose, transaction }: Transaction
                 ?.filter((account) => String(account.id) !== form.account_id)
                 .map((account) => (
                   <option key={account.id} value={account.id}>
-                    {account.name}
+                    {account.name} ({account.currency})
                   </option>
                 ))}
             </Select>
+            {isCrossCurrencyTransfer && (
+              <div className="mt-3">
+                <Label htmlFor="destination_amount">
+                  {t("transactions.form.destinationAmountLabel")} ({destinationAccount.currency})
+                </Label>
+                <Input
+                  id="destination_amount"
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  required
+                  value={form.destination_amount}
+                  onChange={(event) =>
+                    setForm((prev) => ({ ...prev, destination_amount: event.target.value }))
+                  }
+                />
+                <p className="mt-1 text-xs text-text-muted">
+                  {t("transactions.form.destinationAmountHint")}
+                </p>
+              </div>
+            )}
           </div>
         ) : (
           <div>
@@ -460,11 +504,11 @@ export function TransactionFormModal({ open, onClose, transaction }: Transaction
                   <p className={`text-xs ${splitRemainingCents === 0 ? "text-success" : "text-text-muted"}`}>
                     {splitRemainingCents > 0
                       ? t("transactions.form.splitRemainingLabel", {
-                          amount: formatCurrency(splitRemainingCents / 100),
+                          amount: formatCurrency(splitRemainingCents / 100, sourceAccount?.currency),
                         })
                       : splitRemainingCents < 0
                         ? t("transactions.form.splitOverAllocatedLabel", {
-                            amount: formatCurrency(Math.abs(splitRemainingCents) / 100),
+                            amount: formatCurrency(Math.abs(splitRemainingCents) / 100, sourceAccount?.currency),
                           })
                         : t("transactions.form.splitFullyAllocatedLabel")}
                   </p>

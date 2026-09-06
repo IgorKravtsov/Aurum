@@ -20,9 +20,21 @@ from decimal import Decimal
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.account import Account
 from app.models.category import Category
 from app.models.enums import TransactionType
 from app.models.transaction import Transaction, TransactionSplit
+from app.services.fx_service import MoneyAmount, convert_amounts
+from app.services.settings_service import get_or_create_app_settings
+
+
+@dataclass(frozen=True)
+class CategoryContribution:
+    transaction_id: int
+    category_id: int
+    amount: Decimal
+    transaction_date: date_
+    currency: str
 
 
 @dataclass
@@ -60,25 +72,34 @@ class CategoryRollupItem:
     children: list[CategoryRollupChildItem] = field(default_factory=list)
 
 
-async def _raw_category_contributions(
+async def category_contributions(
     session: AsyncSession,
     *,
     transaction_type: TransactionType,
-    start_date: date_ | None,
-    end_date: date_ | None,
-) -> list[tuple[int, int, Decimal]]:
-    """(transaction_id, category_id, amount) for every category a
-    transaction of this type/date-range contributed to. A plain transaction
-    contributes one row (its own category); a split one contributes one row
-    per split line — never both for the same transaction, since a
-    transaction is either plain (category_id set, no splits) or split
-    (category_id NULL, 2+ splits), enforced at write time."""
-    plain_stmt = select(Transaction.id, Transaction.category_id, Transaction.amount).where(
-        Transaction.type == transaction_type, Transaction.category_id.is_not(None)
+    start_date: date_ | None = None,
+    end_date: date_ | None = None,
+) -> list[CategoryContribution]:
+    """Converted contributions for every category a transaction fed.
+
+    A plain transaction contributes one row; a split contributes one row per
+    split line. Currency is inherited from the parent transaction's account,
+    and all values leave this seam in the app's configured display currency.
+    """
+    plain_stmt = (
+        select(Transaction.id, Transaction.category_id, Transaction.amount, Transaction.date, Account.currency)
+        .join(Account, Account.id == Transaction.account_id)
+        .where(Transaction.type == transaction_type, Transaction.category_id.is_not(None))
     )
     split_stmt = (
-        select(TransactionSplit.transaction_id, TransactionSplit.category_id, TransactionSplit.amount)
+        select(
+            TransactionSplit.transaction_id,
+            TransactionSplit.category_id,
+            TransactionSplit.amount,
+            Transaction.date,
+            Account.currency,
+        )
         .join(Transaction, Transaction.id == TransactionSplit.transaction_id)
+        .join(Account, Account.id == Transaction.account_id)
         .where(Transaction.type == transaction_type, TransactionSplit.category_id.is_not(None))
     )
     if start_date is not None:
@@ -88,9 +109,19 @@ async def _raw_category_contributions(
         plain_stmt = plain_stmt.where(Transaction.date <= end_date)
         split_stmt = split_stmt.where(Transaction.date <= end_date)
 
-    plain_rows = (await session.execute(plain_stmt)).all()
-    split_rows = (await session.execute(split_stmt)).all()
-    return [(r[0], r[1], r[2]) for r in plain_rows] + [(r[0], r[1], r[2]) for r in split_rows]
+    rows = (await session.execute(plain_stmt)).all() + (await session.execute(split_stmt)).all()
+    if not rows:
+        return []
+    settings = await get_or_create_app_settings(session)
+    converted = await convert_amounts(
+        session,
+        [MoneyAmount(index, row.amount, row.currency, row.date) for index, row in enumerate(rows)],
+        settings.currency,
+    )
+    return [
+        CategoryContribution(row[0], row[1], converted[index], row[3], settings.currency)
+        for index, row in enumerate(rows)
+    ]
 
 
 async def rollup_spending_by_top_level_category(
@@ -103,7 +134,7 @@ async def rollup_spending_by_top_level_category(
     """Every top-level category's total for the period, sorted by amount
     desc (category sort_order as tiebreak — same order the SQL-only version
     used to produce)."""
-    contributions = await _raw_category_contributions(
+    contributions = await category_contributions(
         session, transaction_type=transaction_type, start_date=start_date, end_date=end_date
     )
     if not contributions:
@@ -117,12 +148,14 @@ async def rollup_spending_by_top_level_category(
     # — the leaf is the same as the effective id when a contribution was
     # filed directly on the parent, and a genuine child id otherwise.
     amount_by_leaf: dict[int, dict[int, Decimal]] = defaultdict(lambda: defaultdict(Decimal))
-    for transaction_id, category_id, amount in contributions:
-        category = categories_by_id.get(category_id)
-        effective_id = category.parent_id if category and category.parent_id is not None else category_id
-        amount_by_effective[effective_id] += amount
-        amount_by_leaf[effective_id][category_id] += amount
-        txn_ids_by_effective[effective_id].add(transaction_id)
+    for contribution in contributions:
+        category = categories_by_id.get(contribution.category_id)
+        effective_id = (
+            category.parent_id if category and category.parent_id is not None else contribution.category_id
+        )
+        amount_by_effective[effective_id] += contribution.amount
+        amount_by_leaf[effective_id][contribution.category_id] += contribution.amount
+        txn_ids_by_effective[effective_id].add(contribution.transaction_id)
 
     items: list[CategoryRollupItem] = []
     for effective_id, amount in amount_by_effective.items():

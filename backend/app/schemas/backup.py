@@ -50,6 +50,18 @@ class TagBackup(BaseModel):
     name: str
 
 
+class FxRateBackup(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    currency: str
+    requested_date: date_
+    effective_date: date_
+    rate_to_pln: Decimal
+    provider: str
+    fetched_at: datetime
+
+
 class TransactionBackup(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -59,6 +71,8 @@ class TransactionBackup(BaseModel):
     transfer_account_id: int | None
     type: TransactionType
     amount: Decimal
+    # Default keeps backups from before cross-currency transfers importable.
+    destination_amount: Decimal | None = None
     description: str
     merchant: str | None
     notes: str | None
@@ -190,6 +204,8 @@ class RecurringTransactionBackup(BaseModel):
     transfer_account_id: int | None
     type: TransactionType
     amount: Decimal
+    # Default keeps backups from before cross-currency transfers importable.
+    destination_amount: Decimal | None = None
     description: str
     merchant: str | None
     notes: str | None
@@ -250,6 +266,9 @@ class BackupPayload(BaseModel):
     # Defaulted so a backup exported before recurring transactions existed
     # still imports cleanly under the same format version.
     recurring_transactions: list[RecurringTransactionBackup] = Field(default_factory=list)
+    # Derived but persisted so restored historical reports still work when
+    # the rate provider is offline. Older backups simply refill this cache.
+    fx_rates: list[FxRateBackup] = Field(default_factory=list)
     # Defaulted so a backup exported before the currency setting existed
     # still imports cleanly under the same format version.
     app_settings: AppSettingsBackup = Field(default_factory=lambda: AppSettingsBackup(currency="USD"))

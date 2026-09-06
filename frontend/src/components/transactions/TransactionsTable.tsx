@@ -5,6 +5,7 @@ import { getCategoryIcon } from "@/lib/icons";
 import { formatCurrency, formatTransactionDate } from "@/lib/format";
 import { useTranslation } from "@/lib/i18n";
 import { categoryPath, translateCategoryName } from "@/lib/categoryLabels";
+import { useAccounts } from "@/hooks/useAccounts";
 import { useCategories } from "@/hooks/useCategories";
 import type { Transaction } from "@/types";
 
@@ -20,6 +21,7 @@ interface TransactionsTableProps {
 
 export function TransactionsTable({ items, onEdit, onDelete, onJumpToMonth }: TransactionsTableProps) {
   const { t } = useTranslation();
+  const { data: accounts } = useAccounts(true);
   const { data: categories } = useCategories();
   const [noteTransaction, setNoteTransaction] = useState<Transaction | null>(null);
 
@@ -40,6 +42,7 @@ export function TransactionsTable({ items, onEdit, onDelete, onJumpToMonth }: Tr
           const isSplit = tx.splits.length > 0;
           const Icon = isTransfer ? ArrowLeftRight : isSplit ? SquareDivide : getCategoryIcon(tx.category?.icon);
           const color = isTransfer || isSplit ? "var(--text-muted)" : tx.category?.color ?? "var(--text-muted)";
+          const transferAccount = accounts?.find((account) => account.id === tx.transfer_account_id);
           const categoryLabel = isSplit
             ? tx.splits.map((split) => (split.category ? translateCategoryName(split.category.name) : "?")).join(" + ")
             : tx.category
@@ -66,12 +69,19 @@ export function TransactionsTable({ items, onEdit, onDelete, onJumpToMonth }: Tr
               </span>
 
               <span
-                className={`shrink-0 text-sm font-medium tabular-nums ${
+                className={`shrink-0 text-right text-sm font-medium tabular-nums ${
                   isTransfer ? "text-text-muted" : isExpense ? "text-text-primary" : "text-success"
                 }`}
               >
-                {isTransfer ? "" : isExpense ? "-" : "+"}
-                {formatCurrency(tx.amount)}
+                <span className="block">
+                  {isTransfer || isExpense ? "-" : "+"}
+                  {formatCurrency(tx.amount, tx.account.currency)}
+                </span>
+                {isTransfer && tx.destination_amount && transferAccount && (
+                  <span className="block text-xs text-success">
+                    +{formatCurrency(tx.destination_amount, transferAccount.currency)}
+                  </span>
+                )}
               </span>
 
               <span className="flex shrink-0 gap-1">

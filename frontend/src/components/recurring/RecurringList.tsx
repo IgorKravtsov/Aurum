@@ -1,4 +1,5 @@
 import { ArrowLeftRight, CalendarCheck, Pencil, Trash2 } from "lucide-react";
+import { useAccounts } from "@/hooks/useAccounts";
 import { getCategoryIcon } from "@/lib/icons";
 import { formatCurrency, getIntlLocale } from "@/lib/format";
 import { useTranslation, type TranslationKey } from "@/lib/i18n";
@@ -21,6 +22,7 @@ function formatDueDate(isoDate: string): string {
 
 export function RecurringList({ items, onPost, onEdit, onDelete, isPosting }: RecurringListProps) {
   const { t } = useTranslation();
+  const { data: accounts } = useAccounts(true);
 
   if (items.length === 0) {
     return <p className="py-10 text-center text-sm text-text-muted">{t("recurring.empty")}</p>;
@@ -33,6 +35,10 @@ export function RecurringList({ items, onPost, onEdit, onDelete, isPosting }: Re
         const isExpense = item.type === "expense";
         const Icon = isTransfer ? ArrowLeftRight : getCategoryIcon(item.category_icon);
         const color = isTransfer ? "var(--text-muted)" : item.category_color ?? "var(--text-muted)";
+        const sourceCurrency = accounts?.find((account) => account.id === item.account_id)?.currency;
+        const destinationCurrency = accounts?.find(
+          (account) => account.id === item.transfer_account_id,
+        )?.currency;
 
         return (
           <li key={item.id} className="flex items-center gap-3 py-3">
@@ -60,12 +66,19 @@ export function RecurringList({ items, onPost, onEdit, onDelete, isPosting }: Re
             </span>
 
             <span
-              className={`shrink-0 text-sm font-medium tabular-nums ${
+              className={`shrink-0 text-right text-sm font-medium tabular-nums ${
                 isTransfer ? "text-text-muted" : isExpense ? "text-text-primary" : "text-success"
               }`}
             >
-              {isTransfer ? "" : isExpense ? "-" : "+"}
-              {formatCurrency(item.amount)}
+              <span className="block">
+                {isTransfer || isExpense ? "-" : "+"}
+                {formatCurrency(item.amount, sourceCurrency)}
+              </span>
+              {isTransfer && item.destination_amount && (
+                <span className="block text-xs text-success">
+                  +{formatCurrency(item.destination_amount, destinationCurrency)}
+                </span>
+              )}
             </span>
 
             <span className="flex shrink-0 gap-1">

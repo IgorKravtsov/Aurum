@@ -29,6 +29,9 @@ class RecurringTransaction(Base, TimestampMixin):
         Enum(TransactionType, name="recurring_transaction_type", native_enum=False, length=10), nullable=False
     )
     amount: Mapped[Numeric] = mapped_column(Numeric(14, 2), nullable=False)
+    # Cross-currency transfer rules preserve the amount that reaches the
+    # destination account, independently from the source amount above.
+    destination_amount: Mapped[Numeric | None] = mapped_column(Numeric(14, 2), nullable=True)
     description: Mapped[str] = mapped_column(String(255), nullable=False)
     merchant: Mapped[str | None] = mapped_column(String(150), nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)

@@ -18,7 +18,6 @@ from collections import defaultdict
 from datetime import date as date_
 from datetime import timedelta
 from decimal import Decimal
-from itertools import groupby
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -35,6 +34,8 @@ from app.schemas.net_worth import (
     RiskLevelItem,
     RiskLevelSummary,
 )
+from app.services.fx_service import MoneyAmount, convert_amounts
+from app.services.settings_service import get_or_create_app_settings
 
 CASH_ACCOUNT_TYPES = {
     AccountType.CHECKING,
@@ -97,39 +98,80 @@ def _daily_series(events: list[tuple[date_, Decimal]], start: date_, end: date_)
     return points
 
 
-async def _cash_cumulative_events(session: AsyncSession) -> list[tuple[date_, Decimal]]:
-    accounts_result = await session.execute(select(Account.id, Account.type))
-    cash_account_ids = {acc_id for acc_id, acc_type in accounts_result.all() if acc_type in CASH_ACCOUNT_TYPES}
+async def _cash_cumulative_events(
+    session: AsyncSession, series_start: date_ | None = None
+) -> list[tuple[date_, Decimal]]:
+    accounts_result = await session.execute(select(Account.id, Account.type, Account.currency))
+    cash_accounts = {
+        acc_id: currency for acc_id, acc_type, currency in accounts_result.all() if acc_type in CASH_ACCOUNT_TYPES
+    }
 
     txns_result = await session.execute(
-        select(Transaction.date, Transaction.type, Transaction.amount, Transaction.account_id, Transaction.transfer_account_id)
+        select(
+            Transaction.date,
+            Transaction.type,
+            Transaction.amount,
+            Transaction.destination_amount,
+            Transaction.account_id,
+            Transaction.transfer_account_id,
+        )
     )
 
-    delta_by_date: dict[date_, Decimal] = defaultdict(Decimal)
-    for tx_date, tx_type, amount, account_id, transfer_account_id in txns_result.all():
-        if tx_type == TransactionType.INCOME and account_id in cash_account_ids:
-            delta_by_date[tx_date] += amount
-        elif tx_type == TransactionType.EXPENSE and account_id in cash_account_ids:
-            delta_by_date[tx_date] -= amount
+    delta_by_day_account: dict[tuple[date_, int], Decimal] = defaultdict(Decimal)
+    transaction_dates: list[date_] = []
+    for tx_date, tx_type, amount, destination_amount, account_id, transfer_account_id in txns_result.all():
+        transaction_dates.append(tx_date)
+        if tx_type == TransactionType.INCOME and account_id in cash_accounts:
+            delta_by_day_account[(tx_date, account_id)] += amount
+        elif tx_type == TransactionType.EXPENSE and account_id in cash_accounts:
+            delta_by_day_account[(tx_date, account_id)] -= amount
         elif tx_type == TransactionType.TRANSFER:
-            if account_id in cash_account_ids:
-                delta_by_date[tx_date] -= amount
-            if transfer_account_id in cash_account_ids:
-                delta_by_date[tx_date] += amount
+            if account_id in cash_accounts:
+                delta_by_day_account[(tx_date, account_id)] -= amount
+            if transfer_account_id in cash_accounts:
+                delta_by_day_account[(tx_date, transfer_account_id)] += destination_amount or amount
 
+    if not transaction_dates:
+        return []
+    history_start = min(transaction_dates)
+    first_day = max(series_start, history_start) if series_start is not None else history_start
+    today = date_.today()
+    if first_day > today:
+        return []
+
+    # Revalue the native balance of every account on every chart date. This
+    # captures FX gains/losses after the transaction date instead of freezing
+    # today's net worth at the historical purchase rate.
+    native_balances: dict[int, Decimal] = defaultdict(Decimal)
+    for (delta_day, account_id), delta in delta_by_day_account.items():
+        if delta_day < first_day:
+            native_balances[account_id] += delta
+    money: list[MoneyAmount] = []
+    day = first_day
+    while day <= today:
+        for account_id in cash_accounts:
+            native_balances[account_id] += delta_by_day_account[(day, account_id)]
+            money.append(MoneyAmount((day, account_id), native_balances[account_id], cash_accounts[account_id], day))
+        day += timedelta(days=1)
+
+    settings = await get_or_create_app_settings(session)
+    converted = await convert_amounts(session, money, settings.currency)
     events: list[tuple[date_, Decimal]] = []
-    running = Decimal("0")
-    for day in sorted(delta_by_date):
-        running += delta_by_date[day]
-        events.append((day, running))
+    day = first_day
+    while day <= today:
+        events.append(
+            (day, sum((converted[(day, account_id)] for account_id in cash_accounts), Decimal("0")))
+        )
+        day += timedelta(days=1)
     return events
 
 
 async def _asset_events_and_class_totals(
     session: AsyncSession,
+    series_start: date_ | None = None,
 ) -> tuple[list[tuple[date_, Decimal]], dict[AssetClass, Decimal], dict[int, Decimal]]:
-    asset_class_result = await session.execute(select(Asset.id, Asset.asset_class))
-    asset_class_map = dict(asset_class_result.all())
+    asset_result = await session.execute(select(Asset.id, Asset.asset_class, Asset.currency))
+    asset_meta = {asset_id: (asset_class, currency) for asset_id, asset_class, currency in asset_result.all()}
 
     valuations_result = await session.execute(
         select(AssetValuation.asset_id, AssetValuation.as_of_date, AssetValuation.value).order_by(
@@ -137,19 +179,54 @@ async def _asset_events_and_class_totals(
         )
     )
     rows = valuations_result.all()
+    if not rows:
+        return [], {}, {}
 
-    current_by_asset: dict[int, Decimal] = {}
+    values_on_day: dict[tuple[date_, int], Decimal] = {
+        (row.as_of_date, row.asset_id): row.value for row in rows
+    }
+    history_start = min(row.as_of_date for row in rows)
+    first_day = max(series_start, history_start) if series_start is not None else history_start
+    today = date_.today()
+    if first_day > today:
+        return [], {}, {}
+
+    # Valuations remain native to each asset. Revaluing the latest known
+    # native amount on every date keeps historical and current net worth
+    # sensitive to FX movements even between valuation entries.
+    native_by_asset: dict[int, Decimal] = {}
+    for row in rows:
+        if row.as_of_date < first_day:
+            native_by_asset[row.asset_id] = row.value
+    money: list[MoneyAmount] = []
+    day = first_day
+    while day <= today:
+        for asset_id, (_, currency) in asset_meta.items():
+            if (day, asset_id) in values_on_day:
+                native_by_asset[asset_id] = values_on_day[(day, asset_id)]
+            if asset_id in native_by_asset:
+                money.append(MoneyAmount((day, asset_id), native_by_asset[asset_id], currency, day))
+        day += timedelta(days=1)
+
+    settings = await get_or_create_app_settings(session)
+    converted = await convert_amounts(session, money, settings.currency)
+    total_by_day: dict[date_, Decimal] = defaultdict(Decimal)
+    for (value_day, _), value in converted.items():
+        total_by_day[value_day] += value
     events: list[tuple[date_, Decimal]] = []
-    for day, group in groupby(rows, key=lambda row: row[1]):
-        for asset_id, _, value in group:
-            current_by_asset[asset_id] = value
-        events.append((day, sum(current_by_asset.values(), Decimal("0"))))
+    day = first_day
+    while day <= today:
+        events.append((day, total_by_day[day]))
+        day += timedelta(days=1)
 
+    current_by_asset = {
+        asset_id: converted[(today, asset_id)]
+        for asset_id in native_by_asset
+        if (today, asset_id) in converted
+    }
     class_totals: dict[AssetClass, Decimal] = defaultdict(Decimal)
     for asset_id, value in current_by_asset.items():
-        asset_class = asset_class_map.get(asset_id)
-        if asset_class is not None:
-            class_totals[asset_class] += value
+        class_totals[asset_meta[asset_id][0]] += value
 
     return events, class_totals, current_by_asset
 
@@ -159,14 +236,25 @@ async def _capital_role_summary(session: AsyncSession, current_by_asset: dict[in
     neutral / drain) instead of by asset class — always all three roles,
     even at zero, so the block reads as a fixed scale rather than a list
     that shuffles as assets are added."""
-    roles_result = await session.execute(select(Asset.id, Asset.capital_role, Asset.monthly_cash_flow))
+    role_rows = (
+        await session.execute(select(Asset.id, Asset.capital_role, Asset.monthly_cash_flow, Asset.currency))
+    ).all()
+    settings = await get_or_create_app_settings(session)
+    converted_flows = await convert_amounts(
+        session,
+        [
+            MoneyAmount(index, row.monthly_cash_flow or Decimal("0"), row.currency, date_.today())
+            for index, row in enumerate(role_rows)
+        ],
+        settings.currency,
+    )
 
     totals_value: dict[CapitalRole, Decimal] = defaultdict(Decimal)
     totals_flow: dict[CapitalRole, Decimal] = defaultdict(Decimal)
     counts: dict[CapitalRole, int] = defaultdict(int)
-    for asset_id, role, cash_flow in roles_result.all():
+    for index, (asset_id, role, _, _) in enumerate(role_rows):
         totals_value[role] += current_by_asset.get(asset_id, Decimal("0"))
-        totals_flow[role] += cash_flow or Decimal("0")
+        totals_flow[role] += converted_flows[index]
         counts[role] += 1
 
     return [
@@ -244,8 +332,11 @@ def _resolve_start_date(range_key: str, cash_events: list[tuple[date_, Decimal]]
 
 async def get_net_worth_summary(session: AsyncSession, range_key: str) -> NetWorthSummary:
     today = date_.today()
-    cash_events = await _cash_cumulative_events(session)
-    asset_events, class_totals, current_by_asset = await _asset_events_and_class_totals(session)
+    requested_start = (
+        today - timedelta(days=RANGE_DAYS[range_key] - 1) if range_key in RANGE_DAYS else None
+    )
+    cash_events = await _cash_cumulative_events(session, requested_start)
+    asset_events, class_totals, current_by_asset = await _asset_events_and_class_totals(session, requested_start)
     capital_roles = await _capital_role_summary(session, current_by_asset)
 
     start = _resolve_start_date(range_key, cash_events, asset_events, today)
