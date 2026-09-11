@@ -169,6 +169,37 @@ tracking assets, exporting a backup — is also available as a plain JSON REST A
 can script Aurum or connect it to other programs. See **[DOCS.md](DOCS.md)** for the full reference,
 or open `/api/docs` on your running instance for interactive Swagger docs.
 
+### Command-line client
+
+The repository also includes a standalone Node.js CLI. It runs on the host and talks to the public
+`/api` URL, so it does not become part of either Docker image. Node.js 20 or newer is required.
+
+```bash
+npm install -g ./cli
+aurum health
+aurum accounts list
+aurum transactions list --year 2026 --month 9
+```
+
+For a remote or otherwise non-default instance, save the API base URL once:
+
+```bash
+aurum config set api-base-url https://finance.example.com/api
+aurum settings get
+```
+
+The environment variable and flag can temporarily override the saved value:
+
+```bash
+export AURUM_API_BASE_URL=https://temporary.example.com/api
+aurum --api-base-url https://finance.example.com/api accounts list
+```
+
+Run `aurum --help` for human-readable help or `aurum skills get core --full` for the complete,
+version-matched agent guide. `./install-skill.sh` installs a small discovery skill into both
+`~/.agents/skills` and `~/.claude/skills`. See **[cli/README.md](cli/README.md)** for authentication
+and payload examples.
+
 ## 🔒 Security & Self-Hosting
 
 **Aurum has no built-in login system.** It's built for one person to self-host one private instance of their own financial data — not as a multi-tenant service with per-user accounts. That's a deliberate trade-off, not an oversight, but it means:

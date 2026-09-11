@@ -6,8 +6,9 @@ setting a budget — can be done directly over HTTP. This makes it possible to s
 from another program (a bank-sync job, a bot, a shortcut on your phone), or pull your data into your
 own tools.
 
-There is no SDK — it's a plain JSON REST API, callable with `curl`, any HTTP client library, or tools
-like Postman/Insomnia.
+It is a plain JSON REST API, callable with `curl`, any HTTP client library, or tools like
+Postman/Insomnia. The repository also includes a standalone Node.js command-line client in `cli/`;
+after `npm install -g ./cli`, run `aurum --help` or `aurum skills get core --full`.
 
 > Interactive, always-up-to-date docs are also built into the backend itself: once your instance is
 > running, open `http://<host>:<port>/api/docs` (Swagger UI) or `http://<host>:<port>/api/redoc`
