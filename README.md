@@ -217,8 +217,15 @@ aurum --api-base-url https://finance.example.com/api accounts list
 
 Run `aurum --help` for human-readable help or `aurum skills get core --full` for the complete,
 version-matched agent guide. `./install-skill.sh` installs a small discovery skill into both
-`~/.agents/skills` and `~/.claude/skills`. See **[cli/README.md](cli/README.md)** for authentication
-and payload examples.
+`~/.agents/skills` and `~/.claude/skills`. To package the current source and install or update the
+CLI and discovery skill on the `pi-srv` SSH host without `sudo`, run:
+
+```bash
+./install-cli-pi-srv.sh
+```
+
+A different SSH host can be passed as the first argument. See **[cli/README.md](cli/README.md)** for
+authentication and payload examples.
 
 ## 🔒 Security & Self-Hosting
 
