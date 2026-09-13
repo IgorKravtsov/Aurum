@@ -1,7 +1,8 @@
 import { useEffect } from "react";
 import { NavLink } from "react-router-dom";
-import { PanelLeftClose, PanelLeftOpen, X } from "lucide-react";
+import { LogOut, PanelLeftClose, PanelLeftOpen, X } from "lucide-react";
 import { Logo } from "@/components/layout/Logo";
+import { clearCredentials, useAuthHeader } from "@/lib/auth";
 import { NAV_ITEMS } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "@/lib/i18n";
@@ -73,8 +74,38 @@ interface SidebarProps {
   onCloseMobile: () => void;
 }
 
+interface LogoutButtonProps {
+  collapsed: boolean;
+  onLogout?: () => void;
+}
+
+/** Clears both the current session and any encrypted remembered credential.
+ * LoginGate observes that state change and returns to the branded login screen. */
+function LogoutButton({ collapsed, onLogout }: LogoutButtonProps) {
+  const { t } = useTranslation();
+
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        clearCredentials();
+        onLogout?.();
+      }}
+      title={collapsed ? t("auth.logout") : undefined}
+      className={cn(
+        "flex w-full items-center gap-3 rounded-lg px-2.5 py-2 text-sm text-text-muted transition-colors hover:bg-danger/10 hover:text-danger",
+        collapsed && "justify-center px-0"
+      )}
+    >
+      <LogOut size={18} className="shrink-0" />
+      {!collapsed && <span>{t("auth.logout")}</span>}
+    </button>
+  );
+}
+
 export function Sidebar({ collapsed, onToggleCollapsed, mobileOpen, onCloseMobile }: SidebarProps) {
   const { t } = useTranslation();
+  const authHeader = useAuthHeader();
 
   useEffect(() => {
     if (!mobileOpen) return;
@@ -114,6 +145,7 @@ export function Sidebar({ collapsed, onToggleCollapsed, mobileOpen, onCloseMobil
         )}
         <NavList collapsed={collapsed} />
         <div className="border-t border-border p-2.5">
+          {authHeader && <LogoutButton collapsed={collapsed} />}
           <button
             type="button"
             onClick={onToggleCollapsed}
@@ -148,6 +180,11 @@ export function Sidebar({ collapsed, onToggleCollapsed, mobileOpen, onCloseMobil
               </button>
             </div>
             <NavList collapsed={false} onNavigate={onCloseMobile} />
+            {authHeader && (
+              <div className="border-t border-border p-2.5">
+                <LogoutButton collapsed={false} onLogout={onCloseMobile} />
+              </div>
+            )}
           </aside>
         </div>
       )}

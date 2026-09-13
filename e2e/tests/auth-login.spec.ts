@@ -35,4 +35,17 @@ test("branded login screen accepts valid Basic Auth credentials", async ({ page 
 
   await expect(usernameInput).not.toBeVisible();
   await expect(page.locator("main")).toBeVisible();
+
+  // The action stays at the bottom of both navigation variants: visible in
+  // the desktop footer, and reachable from the mobile off-canvas drawer.
+  await expect(page.getByRole("button", { name: "Выйти" })).toBeVisible();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByRole("button", { name: "Открыть меню" }).click();
+  const mobileLogout = page.getByRole("button", { name: "Выйти" });
+  await expect(mobileLogout).toBeVisible();
+  await mobileLogout.click();
+
+  await expect(usernameInput).toBeVisible();
+  await expect(page.locator("main")).not.toBeVisible();
+  await expect.poll(() => page.evaluate(() => sessionStorage.getItem("aurum:basicAuth"))).toBeNull();
 });
