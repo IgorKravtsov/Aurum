@@ -134,6 +134,26 @@ docker compose up -d --build
 
 This builds the backend and frontend images, starts Postgres, waits for it to report healthy, then starts the backend (which runs every database migration automatically — nothing to do by hand) and finally the frontend. First run takes a minute or two; after that, images are cached and it's seconds.
 
+### Deploy from the public images (no build)
+
+On another server, clone the repository only to get the Compose configuration,
+create its local `.env`, and pull the published backend and web images:
+
+```bash
+git clone https://github.com/IgorKravtsov/Aurum.git
+cd Aurum
+cp .env.example .env
+# Set unique passwords in .env before starting.
+docker compose pull
+docker compose up -d --no-build
+```
+
+The public images contain no credentials or financial data. Basic Auth, Postgres,
+and optional CoinGecko credentials are injected from that server's `.env` only at
+container startup. Pinning to the versioned image references in `docker-compose.yml`
+keeps deployments reproducible; `AURUM_BACKEND_IMAGE` and `AURUM_WEB_IMAGE` can
+override them when needed.
+
 ### 5. Open it
 
 Visit **http://localhost:3000** (or whatever port you set via `AURUM_WEB_PORT` in `.env`). A default account and the standard expense/income categories are seeded automatically — there's nothing to configure before you can add your first transaction.
