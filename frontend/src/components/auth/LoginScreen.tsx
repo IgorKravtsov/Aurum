@@ -1,4 +1,5 @@
 import { type FormEvent, useState } from "react";
+import { Eye, EyeOff } from "lucide-react";
 import { Logo } from "@/components/layout/Logo";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
@@ -17,6 +18,7 @@ export function LoginScreen() {
   const { t } = useTranslation();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [remember, setRemember] = useState(false);
   const [status, setStatus] = useState<Status>("idle");
   // Remembering encrypts the credential with WebCrypto, which browsers only
@@ -61,15 +63,28 @@ export function LoginScreen() {
             </div>
             <div>
               <Label htmlFor="auth-password">{t("auth.passwordLabel")}</Label>
-              <Input
-                id="auth-password"
-                name="password"
-                type="password"
-                autoComplete="current-password"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                required
-              />
+              <div className="relative">
+                <Input
+                  id="auth-password"
+                  name="password"
+                  type={isPasswordVisible ? "text" : "password"}
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  className="pr-10"
+                  required
+                />
+                <button
+                  type="button"
+                  aria-controls="auth-password"
+                  aria-label={isPasswordVisible ? t("auth.hidePassword") : t("auth.showPassword")}
+                  aria-pressed={isPasswordVisible}
+                  onClick={() => setIsPasswordVisible((isVisible) => !isVisible)}
+                  className="absolute inset-y-0 right-0 flex w-10 items-center justify-center rounded-r-lg text-text-muted transition-colors hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-series-1"
+                >
+                  {isPasswordVisible ? <EyeOff aria-hidden="true" size={18} /> : <Eye aria-hidden="true" size={18} />}
+                </button>
+              </div>
             </div>
 
             {canRemember ? (

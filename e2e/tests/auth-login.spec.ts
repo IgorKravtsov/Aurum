@@ -17,7 +17,15 @@ test("branded login screen accepts valid Basic Auth credentials", async ({ page 
   await expect(usernameInput).toBeVisible();
 
   await usernameInput.fill(username);
-  await page.locator("#auth-password").fill(password);
+  const passwordInput = page.locator("#auth-password");
+  await passwordInput.fill(password);
+
+  const showPasswordButton = page.getByRole("button", { name: "Показать пароль" });
+  await expect(passwordInput).toHaveAttribute("type", "password");
+  await showPasswordButton.click();
+  await expect(passwordInput).toHaveAttribute("type", "text");
+  await page.getByRole("button", { name: "Скрыть пароль" }).click();
+  await expect(passwordInput).toHaveAttribute("type", "password");
 
   const successfulCredentialCheck = page.waitForResponse(
     (response) => response.url().endsWith("/api/auth/check") && response.status() === 204,
