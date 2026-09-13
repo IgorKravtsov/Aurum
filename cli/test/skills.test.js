@@ -16,6 +16,8 @@ test("версия CLI берётся из package.json", async () => {
 test("skills get выдаёт руководство установленной версии", async () => {
   const core = await runSkills(["skills", "get", "core"], {});
   assert.match(core, /# Aurum CLI/);
+  assert.match(core, /Обязательное сопоставление перед внесением операций/);
+  assert.match(core, /Ничего не записывайте без явного подтверждения/);
   assert.doesNotMatch(core, /# Полный справочник Aurum CLI/);
 
   const full = await runSkills(["skills", "get", "core"], { full: true });
@@ -35,4 +37,5 @@ test("install-skill.sh устанавливает одинаковый discovery
   const claudeSkill = await readFile(join(claude, "aurum", "SKILL.md"), "utf8");
   assert.equal(agentsSkill, claudeSkill);
   assert.match(agentsSkill, /aurum skills get core/);
+  assert.match(agentsSkill, /сопоставьте с ними каждую входящую запись/);
 });
