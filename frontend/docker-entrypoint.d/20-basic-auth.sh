@@ -27,15 +27,19 @@ auth_basic "Aurum";
 auth_basic_user_file /etc/nginx/.htpasswd;
 EOF
   cat > "$AUTH_CHECK_FRAGMENT" <<EOF
+set \$aurum_auth_status "ok";
 if (\$http_authorization != "Basic ${BASIC_CREDENTIALS}") {
-  return 403;
+  set \$aurum_auth_status "unauthorized";
 }
 return 204;
 EOF
   echo "[aurum] Basic auth enabled for user '${AURUM_BASIC_AUTH_USER}'."
 else
   : > "$AUTH_FRAGMENT"
-  echo "return 204;" > "$AUTH_CHECK_FRAGMENT"
+  cat > "$AUTH_CHECK_FRAGMENT" <<EOF
+set \$aurum_auth_status "not-configured";
+return 204;
+EOF
   echo "[aurum] WARNING: AURUM_BASIC_AUTH_USER / AURUM_BASIC_AUTH_PASSWORD are not set." >&2
   echo "[aurum] This instance has NO authentication — anyone who can reach it can read," >&2
   echo "[aurum] edit, and delete all financial data. Fine for 'localhost only'. Before" >&2

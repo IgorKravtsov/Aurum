@@ -24,7 +24,7 @@ services:
   backend:
     # The published image lets a server deploy without Python or a local build.
     # Keep build: for contributors; `docker compose up --no-build` uses image:.
-    image: ${AURUM_BACKEND_IMAGE:-igorkravtsov/aurum-backend:1.3.1}
+    image: ${AURUM_BACKEND_IMAGE:-igorkravtsov/aurum-backend:1.3.2}
     build: ./backend
     restart: unless-stopped
     # Nothing here ever needs to gain privileges (no setuid binaries, no sudo),
@@ -54,7 +54,7 @@ services:
   web:
     # Runtime credentials come from the server's .env and are never baked into
     # this public image. `docker compose up --no-build` uses image: below.
-    image: ${AURUM_WEB_IMAGE:-igorkravtsov/aurum-web:1.3.1}
+    image: ${AURUM_WEB_IMAGE:-igorkravtsov/aurum-web:1.3.2}
     build: ./frontend
     restart: unless-stopped
     # nginx's master still needs root to bind :80 and to write the htpasswd

@@ -143,9 +143,10 @@ export type CredentialCheck = "ok" | "unauthorized" | "unreachable";
 // native Basic Auth dialog — the one thing Aurum's branded login screen
 // exists to avoid. Even a deliberately wrong Authorization header is not
 // sufficient in every Chrome version, so nginx exposes /api/auth/check and
-// converts a failed challenge to a plain 403 without WWW-Authenticate. The
-// fixed placeholder remains useful for distinguishing "not configured"
-// (200, header ignored) from "configured, please log in" (403).
+// returns the result in X-Aurum-Auth-Status with an always-successful 204.
+// That avoids both the native prompt and an expected 403 appearing as an
+// error in browser consoles. The fixed placeholder remains useful for
+// distinguishing "not configured" from "configured, please log in".
 const PROBE_HEADER = `Basic ${btoa("__aurum_probe__:__aurum_probe__")}`;
 
 /** Hits nginx's lightweight, challenge-free credential endpoint with the
@@ -158,6 +159,10 @@ export async function checkCredentials(header: string | null): Promise<Credentia
     const response = await fetch("/api/auth/check", {
       headers: { Authorization: header ?? PROBE_HEADER },
     });
+    const authStatus = response.headers.get("X-Aurum-Auth-Status");
+    if (authStatus === "unauthorized") return "unauthorized";
+    // Keep the old status fallback while updating an installation whose
+    // browser bundle and nginx container may briefly be on different versions.
     return response.status === 401 || response.status === 403 ? "unauthorized" : "ok";
   } catch {
     return "unreachable";

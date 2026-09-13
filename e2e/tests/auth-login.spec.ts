@@ -10,7 +10,8 @@ test("branded login screen accepts valid Basic Auth credentials", async ({ page 
   const authProbePromise = page.waitForResponse((response) => response.url().endsWith("/api/auth/check"));
   await page.goto("/");
   const authProbe = await authProbePromise;
-  expect(authProbe.status()).toBe(403);
+  expect(authProbe.status()).toBe(204);
+  expect(authProbe.headers()["x-aurum-auth-status"]).toBe("unauthorized");
   expect(authProbe.headers()["www-authenticate"]).toBeUndefined();
 
   const usernameInput = page.locator("#auth-username");
@@ -31,7 +32,8 @@ test("branded login screen accepts valid Basic Auth credentials", async ({ page 
     (response) => response.url().endsWith("/api/auth/check") && response.status() === 204,
   );
   await page.locator('button[type="submit"]').click();
-  await successfulCredentialCheck;
+  const successfulProbe = await successfulCredentialCheck;
+  expect(successfulProbe.headers()["x-aurum-auth-status"]).toBe("ok");
 
   await expect(usernameInput).not.toBeVisible();
   await expect(page.locator("main")).toBeVisible();
