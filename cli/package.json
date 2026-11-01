@@ -1,6 +1,6 @@
 {
   "name": "aurum-cli",
-  "version": "1.3.2",
+  "version": "1.4.0",
   "description": "Command-line client for the Aurum REST API",
   "type": "module",
   "bin": {
