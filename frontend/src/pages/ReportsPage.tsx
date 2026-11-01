@@ -6,6 +6,7 @@ import { PillSelector } from "@/components/layout/PillSelector";
 import { YearRangeSelector } from "@/components/layout/YearSelector";
 import { CategoryRankingCard } from "@/components/reports/CategoryRankingCard";
 import { CategorySpendingChart } from "@/components/reports/CategorySpendingChart";
+import { ItemSpendingCard } from "@/components/reports/ItemSpendingCard";
 import { TransactionsTable } from "@/components/transactions/TransactionsTable";
 import { TransactionFormModal } from "@/components/transactions/TransactionFormModal";
 import { useCategories } from "@/hooks/useCategories";
@@ -19,6 +20,8 @@ import type { Transaction } from "@/types";
 
 const PAGE_SIZE = 20;
 
+type ReportsTab = "categories" | "items";
+
 export function ReportsPage() {
   const { t, language } = useTranslation();
   const now = new Date();
@@ -28,6 +31,11 @@ export function ReportsPage() {
     { value: "5y", label: t("reports.range5y") },
     { value: "custom", label: t("reports.rangeCustom") },
   ];
+  const TAB_OPTIONS: Array<{ value: ReportsTab; label: string }> = [
+    { value: "categories", label: t("reports.tabCategories") },
+    { value: "items", label: t("reports.tabItems") },
+  ];
+  const [tab, setTab] = useState<ReportsTab>("categories");
   const { data: categories } = useCategories();
   const { data: years } = useTransactionYears();
   const [categoryId, setCategoryId] = useState<number | null>(null);
@@ -87,39 +95,45 @@ export function ReportsPage() {
 
   return (
     <div className="space-y-5">
+      <PillSelector options={TAB_OPTIONS} value={tab} onChange={setTab} />
+
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div className="max-w-xs flex-1">
-          <Label htmlFor="report-category">{t("reports.categoryLabel")}</Label>
-          <Select
-            id="report-category"
-            value={categoryId ?? ""}
-            onChange={(event) => {
-              setCategoryId(Number(event.target.value));
-              setPage(1);
-            }}
-          >
-            {expenseCategories.length > 0 && (
-              <optgroup label={t("reports.expenseGroup")}>
-                {expenseCategories.map((category) => (
-                  <option key={category.id} value={category.id}>
-                    {category.indented ? `    ↳ ` : ""}
-                    {translateCategoryName(category.name)}
-                  </option>
-                ))}
-              </optgroup>
-            )}
-            {incomeCategories.length > 0 && (
-              <optgroup label={t("reports.incomeGroup")}>
-                {incomeCategories.map((category) => (
-                  <option key={category.id} value={category.id}>
-                    {category.indented ? `    ↳ ` : ""}
-                    {translateCategoryName(category.name)}
-                  </option>
-                ))}
-              </optgroup>
-            )}
-          </Select>
-        </div>
+        {tab === "categories" ? (
+          <div className="max-w-xs flex-1">
+            <Label htmlFor="report-category">{t("reports.categoryLabel")}</Label>
+            <Select
+              id="report-category"
+              value={categoryId ?? ""}
+              onChange={(event) => {
+                setCategoryId(Number(event.target.value));
+                setPage(1);
+              }}
+            >
+              {expenseCategories.length > 0 && (
+                <optgroup label={t("reports.expenseGroup")}>
+                  {expenseCategories.map((category) => (
+                    <option key={category.id} value={category.id}>
+                      {category.indented ? `    ↳ ` : ""}
+                      {translateCategoryName(category.name)}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+              {incomeCategories.length > 0 && (
+                <optgroup label={t("reports.incomeGroup")}>
+                  {incomeCategories.map((category) => (
+                    <option key={category.id} value={category.id}>
+                      {category.indented ? `    ↳ ` : ""}
+                      {translateCategoryName(category.name)}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+            </Select>
+          </div>
+        ) : (
+          <div className="hidden sm:block sm:flex-1" />
+        )}
         <div className="flex flex-wrap items-center justify-end gap-2">
           <PillSelector
             options={RANGE_OPTIONS}
@@ -143,57 +157,63 @@ export function ReportsPage() {
         </div>
       </div>
 
-      <CategorySpendingChart report={report} isLoading={isReportLoading} />
+      {tab === "items" ? (
+        <ItemSpendingCard startDate={startDate} endDate={endDate} />
+      ) : (
+        <>
+        <CategorySpendingChart report={report} isLoading={isReportLoading} />
 
-      <CategoryRankingCard
-        items={ranking?.items ?? []}
-        isLoading={isRankingLoading}
-        selectedCategoryId={categoryId}
-        onSelectCategory={(id) => {
-          setCategoryId(id);
-          setPage(1);
-        }}
-      />
+        <CategoryRankingCard
+          items={ranking?.items ?? []}
+          isLoading={isRankingLoading}
+          selectedCategoryId={categoryId}
+          onSelectCategory={(id) => {
+            setCategoryId(id);
+            setPage(1);
+          }}
+        />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>{t("reports.transactionsTitle")}</CardTitle>
-          {transactions && (
-            <span className="text-xs text-text-muted">{t("common.totalCount", { count: transactions.total })}</span>
-          )}
-        </CardHeader>
-        <CardContent>
-          <Select
-            value={sort}
-            onChange={(event) => {
-              setSort(event.target.value as TransactionSort);
-              setPage(1);
-            }}
-            className="mb-3 sm:w-56"
-          >
-            <option value="date_desc">{t("transactions.sortDateDesc")}</option>
-            <option value="amount_desc">{t("transactions.sortAmountDesc")}</option>
-            <option value="amount_asc">{t("transactions.sortAmountAsc")}</option>
-          </Select>
-          {isTransactionsLoading ? (
-            <p className="py-12 text-center text-sm text-text-muted">{t("common.loading")}</p>
-          ) : (
-            <TransactionsTable items={transactions?.items ?? []} onEdit={handleEdit} onDelete={handleDelete} />
-          )}
+        <Card>
+          <CardHeader>
+            <CardTitle>{t("reports.transactionsTitle")}</CardTitle>
+            {transactions && (
+              <span className="text-xs text-text-muted">{t("common.totalCount", { count: transactions.total })}</span>
+            )}
+          </CardHeader>
+          <CardContent>
+            <Select
+              value={sort}
+              onChange={(event) => {
+                setSort(event.target.value as TransactionSort);
+                setPage(1);
+              }}
+              className="mb-3 sm:w-56"
+            >
+              <option value="date_desc">{t("transactions.sortDateDesc")}</option>
+              <option value="amount_desc">{t("transactions.sortAmountDesc")}</option>
+              <option value="amount_asc">{t("transactions.sortAmountAsc")}</option>
+            </Select>
+            {isTransactionsLoading ? (
+              <p className="py-12 text-center text-sm text-text-muted">{t("common.loading")}</p>
+            ) : (
+              <TransactionsTable items={transactions?.items ?? []} onEdit={handleEdit} onDelete={handleDelete} />
+            )}
 
-          {totalPages > 1 && (
-            <div className="mt-4 flex items-center justify-center gap-3 text-sm">
-              <Button variant="secondary" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
-                {t("common.back")}
-              </Button>
-              <span className="text-text-muted">{t("common.pageOf", { page, total: totalPages })}</span>
-              <Button variant="secondary" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>
-                {t("common.next")}
-              </Button>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+            {totalPages > 1 && (
+              <div className="mt-4 flex items-center justify-center gap-3 text-sm">
+                <Button variant="secondary" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
+                  {t("common.back")}
+                </Button>
+                <span className="text-text-muted">{t("common.pageOf", { page, total: totalPages })}</span>
+                <Button variant="secondary" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>
+                  {t("common.next")}
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+        </>
+      )}
 
       <TransactionFormModal
         open={modalOpen}

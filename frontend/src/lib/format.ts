@@ -33,6 +33,14 @@ export function formatCurrency(amount: number | string, currency: string = getCu
   return createCurrencyFormatter(currency, 0).format(value);
 }
 
+/** formatCurrency with cents kept — for receipt line items, unit prices and
+ * discounts, where "2.50" vs "3" is the whole point of the number (the
+ * whole-unit rounding above suits totals and charts, not a 2.49 yogurt). */
+export function formatCurrencyCents(amount: number | string, currency: string = getCurrency()): string {
+  const value = typeof amount === "string" ? Number(amount) : amount;
+  return createCurrencyFormatter(currency, 2).format(value);
+}
+
 /** Same currency formatting as formatCurrency, but scales decimal precision
  * down to the value's own magnitude instead of always rounding to whole
  * units — a low-cap memecoin can genuinely price at $0.000000006894, and

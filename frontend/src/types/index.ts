@@ -82,6 +82,34 @@ export interface TransactionSplitInput {
   note?: string | null;
 }
 
+// A receipt line item — one product the transaction's money bought. Independent
+// of splits: items describe a purchase and may cover it only partially, so
+// their total isn't required to match the transaction amount (compare
+// Transaction.items_total with Transaction.amount instead). amount is the final
+// line total after discount and may be zero or negative (a deposit return).
+export interface TransactionItem {
+  id: number;
+  name: string;
+  quantity: string;
+  unit: string | null;
+  unit_price: string | null;
+  discount: string;
+  amount: string;
+  category_id: number | null;
+  category: Category | null;
+  position: number;
+}
+
+export interface TransactionItemInput {
+  name: string;
+  amount: string;
+  quantity?: string;
+  unit?: string | null;
+  unit_price?: string | null;
+  discount?: string;
+  category_id?: number | null;
+}
+
 export interface Transaction {
   id: number;
   account_id: number;
@@ -98,6 +126,9 @@ export interface Transaction {
   category: Category | null;
   tags: Tag[];
   splits: TransactionSplit[];
+  items: TransactionItem[];
+  // Sum of items' amounts, null when the transaction has no items.
+  items_total: string | null;
 }
 
 export interface TransactionPage {
@@ -126,6 +157,9 @@ export interface TransactionInput {
   // above must then be null. On update, omitted leaves existing splits
   // untouched; sent (even as []) replaces the full split set.
   splits?: TransactionSplitInput[] | null;
+  // Same semantics as splits: omitted leaves receipt line items untouched on
+  // update; sent (even as []) replaces the full set. Not valid on transfers.
+  items?: TransactionItemInput[] | null;
 }
 
 export interface RecurringTransaction {
@@ -575,3 +609,25 @@ export interface AppSettings {
   app_version: string;
 }
 
+
+export interface ItemSpendingProduct {
+  name: string;
+  total_amount: string;
+  total_quantity: string;
+  unit: string | null;
+  purchase_count: number;
+  avg_unit_price: string | null;
+  last_date: string;
+}
+
+export interface ItemSpendingReport {
+  start_date: string | null;
+  end_date: string | null;
+  search: string | null;
+  account_id: number | null;
+  currency: string;
+  total_amount: string;
+  product_count: number;
+  purchase_count: number;
+  items: ItemSpendingProduct[];
+}

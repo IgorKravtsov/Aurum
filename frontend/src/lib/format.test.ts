@@ -3,6 +3,7 @@ import { setLanguage } from "@/lib/i18n";
 import {
   formatCryptoAmount,
   formatCurrency,
+  formatCurrencyCents,
   formatSignedCurrency,
   formatTransactionDate,
   getIntlLocale,
@@ -45,6 +46,15 @@ describe("formatCurrency", () => {
 
   it("accepts a numeric string the same as a number", () => {
     expect(formatCurrency("614", "USD")).toBe(formatCurrency(614, "USD"));
+  });
+});
+
+describe("formatCurrencyCents", () => {
+  beforeEach(() => setLanguage("en"));
+
+  it("keeps cents for receipt line amounts", () => {
+    expect(formatCurrencyCents(2.5, "USD")).toBe("$2.50");
+    expect(formatCurrencyCents("-0.50", "USD")).toBe("-$0.50");
   });
 });
 

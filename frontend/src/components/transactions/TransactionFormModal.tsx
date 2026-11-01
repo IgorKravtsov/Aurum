@@ -3,6 +3,7 @@ import { Plus, X } from "lucide-react";
 import { Dialog } from "@/components/ui/Dialog";
 import { Button } from "@/components/ui/Button";
 import { Input, Label, Select } from "@/components/ui/Input";
+import { ReceiptItemsEditor } from "@/components/transactions/ReceiptItemsEditor";
 import { TagInput } from "@/components/transactions/TagInput";
 import { useAccounts } from "@/hooks/useAccounts";
 import { useCategories } from "@/hooks/useCategories";
@@ -11,7 +12,15 @@ import { useTranslation } from "@/lib/i18n";
 import { buildHierarchicalCategories, translateCategoryName } from "@/lib/categoryLabels";
 import { formatCurrency } from "@/lib/format";
 import { createLocalId } from "@/lib/localId";
-import type { Tag, Transaction, TransactionInput, TransactionSplitInput, TransactionType } from "@/types";
+import { rowFromItem, toItemInputs, type ReceiptItemRow, type ReceiptItemsError } from "@/lib/receiptItems";
+import type {
+  Tag,
+  Transaction,
+  TransactionInput,
+  TransactionItemInput,
+  TransactionSplitInput,
+  TransactionType,
+} from "@/types";
 
 interface TransactionFormModalProps {
   open: boolean;
@@ -51,6 +60,13 @@ function emptySplitRow(): SplitRowState {
   return { key: createLocalId("split"), category_id: "", amount: "", note: "" };
 }
 
+const RECEIPT_ITEM_ERROR_KEYS = {
+  missingName: "transactions.items.errorMissingName",
+  missingAmount: "transactions.items.errorMissingAmount",
+  invalidQuantity: "transactions.items.errorInvalidQuantity",
+  negativeValue: "transactions.items.errorNegativeValue",
+} as const satisfies Record<ReceiptItemsError, string>;
+
 // Cents, not floats — a plain Number sum of "0.10" + "0.20" style amounts can
 // drift from the transaction total by fractions of a cent, which would
 // falsely trip the "must add up exactly" check the backend also enforces.
@@ -70,6 +86,12 @@ export function TransactionFormModal({ open, onClose, transaction }: Transaction
   const [tags, setTags] = useState<Tag[]>([]);
   const [splitMode, setSplitMode] = useState(false);
   const [splitRows, setSplitRows] = useState<SplitRowState[]>([emptySplitRow(), emptySplitRow()]);
+  // Receipt line items. itemsDirty tracks whether the user touched them, so
+  // an edit that doesn't involve items leaves the stored set alone (the
+  // PATCH omits `items`) instead of re-sending it.
+  const [itemRows, setItemRows] = useState<ReceiptItemRow[]>([]);
+  const [itemsExpanded, setItemsExpanded] = useState(false);
+  const [itemsDirty, setItemsDirty] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -112,12 +134,17 @@ export function TransactionFormModal({ open, onClose, transaction }: Transaction
             }))
           : [emptySplitRow(), emptySplitRow()]
       );
+      setItemRows(transaction.items.map(rowFromItem));
+      setItemsExpanded(transaction.items.length > 0);
     } else {
       setForm({ ...EMPTY_FORM, account_id: accounts?.[0] ? String(accounts[0].id) : "" });
       setTags([]);
       setSplitMode(false);
       setSplitRows([emptySplitRow(), emptySplitRow()]);
+      setItemRows([]);
+      setItemsExpanded(false);
     }
+    setItemsDirty(false);
     setError(null);
   }, [open, transaction, accounts]);
 
@@ -237,6 +264,22 @@ export function TransactionFormModal({ open, onClose, transaction }: Transaction
       splits = [];
     }
 
+    // Same omitted/replace semantics as splits: undefined leaves stored items
+    // untouched on update; a list (even []) replaces them. Transfers can't
+    // carry items, so switching to one clears any that were there.
+    let items: TransactionItemInput[] | undefined;
+    if (form.type === "transfer") {
+      if (transaction && transaction.items.length > 0) items = [];
+    } else if (itemsDirty || !transaction) {
+      const converted = toItemInputs(itemRows);
+      if ("error" in converted) {
+        setItemsExpanded(true);
+        setError(t(RECEIPT_ITEM_ERROR_KEYS[converted.error]));
+        return;
+      }
+      items = transaction || converted.items.length > 0 ? converted.items : undefined;
+    }
+
     const payload: TransactionInput = {
       type: form.type,
       account_id: Number(form.account_id),
@@ -255,6 +298,7 @@ export function TransactionFormModal({ open, onClose, transaction }: Transaction
       date: form.date,
       tag_ids: tags.map((tag) => tag.id),
       splits,
+      items,
     };
 
     try {
@@ -285,6 +329,12 @@ export function TransactionFormModal({ open, onClose, transaction }: Transaction
               const nextType = event.target.value as TransactionType;
               setForm((prev) => ({ ...prev, type: nextType, category_id: "" }));
               if (nextType === "transfer") setSplitMode(false);
+              // Item categories belong to the old type's kind (income vs
+              // expense) — clear them like the transaction's own category.
+              if (itemRows.some((row) => row.category_id)) {
+                setItemRows((prev) => prev.map((row) => ({ ...row, category_id: "" })));
+                setItemsDirty(true);
+              }
             }}
           >
             <option value="expense">{t("transactions.form.typeExpense")}</option>
@@ -510,6 +560,21 @@ export function TransactionFormModal({ open, onClose, transaction }: Transaction
               </div>
             )}
           </div>
+        )}
+
+        {form.type !== "transfer" && (
+          <ReceiptItemsEditor
+            rows={itemRows}
+            onChange={(rows) => {
+              setItemRows(rows);
+              setItemsDirty(true);
+            }}
+            expanded={itemsExpanded}
+            onToggle={() => setItemsExpanded((prev) => !prev)}
+            transactionAmount={form.amount}
+            currency={sourceAccount?.currency}
+            categories={relevantCategories}
+          />
         )}
 
         <div>

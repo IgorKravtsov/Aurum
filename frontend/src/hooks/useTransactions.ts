@@ -25,6 +25,7 @@ function useInvalidateAfterTransactionChange() {
     queryClient.invalidateQueries({ queryKey: ["net-worth-summary"] });
     queryClient.invalidateQueries({ queryKey: ["category-spending-report"] });
     queryClient.invalidateQueries({ queryKey: ["category-ranking"] });
+    queryClient.invalidateQueries({ queryKey: ["item-spending"] });
     queryClient.invalidateQueries({ queryKey: ["budget-status"] });
     queryClient.invalidateQueries({ queryKey: ["financial-alerts"] });
     queryClient.invalidateQueries({ queryKey: ["advice"] });

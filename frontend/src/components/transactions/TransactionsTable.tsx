@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { ArrowLeftRight, CalendarSearch, Pencil, SquareDivide, StickyNote, Trash2 } from "lucide-react";
+import { ArrowLeftRight, CalendarSearch, Pencil, ReceiptText, SquareDivide, StickyNote, Trash2 } from "lucide-react";
 import { Dialog } from "@/components/ui/Dialog";
+import { ReceiptItemsDialog } from "@/components/transactions/ReceiptItemsDialog";
 import { getCategoryIcon } from "@/lib/icons";
 import { formatCurrency, formatTransactionDate } from "@/lib/format";
 import { useTranslation } from "@/lib/i18n";
@@ -24,6 +25,7 @@ export function TransactionsTable({ items, onEdit, onDelete, onJumpToMonth }: Tr
   const { data: accounts } = useAccounts(true);
   const { data: categories } = useCategories();
   const [noteTransaction, setNoteTransaction] = useState<Transaction | null>(null);
+  const [itemsTransaction, setItemsTransaction] = useState<Transaction | null>(null);
 
   if (items.length === 0) {
     return (
@@ -95,6 +97,18 @@ export function TransactionsTable({ items, onEdit, onDelete, onJumpToMonth }: Tr
                     <CalendarSearch size={15} />
                   </button>
                 )}
+                {tx.items.length > 0 && (
+                  <button
+                    type="button"
+                    aria-label={t("transactions.items.viewItems", { count: tx.items.length })}
+                    title={t("transactions.items.viewItems", { count: tx.items.length })}
+                    onClick={() => setItemsTransaction(tx)}
+                    className="flex items-center gap-0.5 rounded-md p-1.5 text-text-muted hover:bg-surface-2 hover:text-text-primary"
+                  >
+                    <ReceiptText size={15} />
+                    <span className="text-[11px] font-medium tabular-nums">{tx.items.length}</span>
+                  </button>
+                )}
                 {tx.notes && (
                   <button
                     type="button"
@@ -134,6 +148,8 @@ export function TransactionsTable({ items, onEdit, onDelete, onJumpToMonth }: Tr
       >
         <p className="whitespace-pre-wrap text-sm text-text-primary">{noteTransaction?.notes}</p>
       </Dialog>
+
+      <ReceiptItemsDialog transaction={itemsTransaction} onClose={() => setItemsTransaction(null)} />
     </>
   );
 }
