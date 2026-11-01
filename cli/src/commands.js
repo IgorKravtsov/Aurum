@@ -84,6 +84,10 @@ export const COMMANDS = [
   command("net-worth summary", "GET", "/net-worth/summary", { query: ["range"], description: "Капитал и его история" }),
   command("reports category-spending", "GET", "/reports/category-spending", { query: ["category_id", "start_date", "end_date"], description: "Расходы выбранной категории" }),
   command("reports category-ranking", "GET", "/reports/category-ranking", { query: ["kind", "start_date", "end_date"], description: "Рейтинг категорий" }),
+  command("reports item-spending", "GET", "/reports/item-spending", {
+    query: ["start_date", "end_date", "search", "account_id", "limit"],
+    description: "Расходы по товарам из позиций чеков",
+  }),
   command("insights alerts", "GET", "/insights/alerts", { description: "Финансовые предупреждения" }),
   command("advice get", "GET", "/advice", { description: "Финансовые рекомендации" }),
   command("settings get", "GET", "/settings", { description: "Получить настройки" }),

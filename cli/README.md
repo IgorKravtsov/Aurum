@@ -25,7 +25,10 @@ aurum accounts list
 aurum transactions list --year 2026 --month 9
 aurum accounts create --name "Cash" --type cash --currency USD
 aurum backup export --output ./aurum-backup.json
+aurum reports item-spending --start-date 2026-01-01 --search milk
 ```
+
+Товарные позиции чека передаются JSON-массивом `--items` в `transactions create`/`update`/`bulk`; формат описан в `aurum skills get core --full`.
 
 Для другого сервера достаточно один раз сохранить базовый URL:
 

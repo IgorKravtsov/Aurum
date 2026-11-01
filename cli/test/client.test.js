@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
+import { parseArguments } from "../src/args.js";
 import { buildRequest, executeRequest } from "../src/client.js";
 import { findCommand } from "../src/commands.js";
 
@@ -63,4 +64,36 @@ test("пароль читается из файла без завершающе�
   );
   assert.equal(authorization, `Basic ${Buffer.from("alice:local-secret").toString("base64")}`);
   assert.equal(await readFile(passwordFile, "utf8"), "local-secret\n");
+});
+
+test("reports item-spending передаёт фильтры как query-параметры", async () => {
+  const positionals = ["reports", "item-spending"];
+  const command = findCommand(positionals);
+  const request = await buildRequest(
+    command,
+    positionals,
+    { start_date: "2026-01-01", end_date: "2026-03-31", search: "milk", account_id: 2, limit: 10 },
+    { api_base_url: "https://finance.example/api" },
+  );
+  assert.equal(request.method, "GET");
+  assert.equal(request.url.pathname, "/api/reports/item-spending");
+  assert.deepEqual(Object.fromEntries(request.url.searchParams), {
+    start_date: "2026-01-01",
+    end_date: "2026-03-31",
+    search: "milk",
+    account_id: "2",
+    limit: "10",
+  });
+  assert.equal(request.body, undefined);
+});
+
+test("--items передаёт позиции чека JSON-массивом в теле операции", async () => {
+  const argv = [
+    "transactions", "create",
+    "--account-id", "1", "--type", "expense", "--amount", "7.00",
+    "--items", '[{"name":"Milk 2%","quantity":2,"unit":"szt","unit_price":3.5,"amount":7}]',
+  ];
+  const parsed = parseArguments(argv);
+  const request = await buildRequest(findCommand(parsed.positionals), parsed.positionals, parsed.flags, {});
+  assert.deepEqual(request.body.items, [{ name: "Milk 2%", quantity: 2, unit: "szt", unit_price: 3.5, amount: 7 }]);
 });

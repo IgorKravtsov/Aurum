@@ -59,6 +59,19 @@ aurum transactions create \
   --description "Groceries" --date 2026-09-12 --tag-ids '[1,2]'
 ```
 
+Товарные позиции чека передаются в поле `items` операции (необязательно; только для `expense`/`income`, не для переводов). Сумма позиций не обязана совпадать с `amount`: ответ содержит `items_total`, чтобы показать расхождение. Пример с нейтральными данными:
+
+```bash
+aurum transactions create \
+  --account-id 1 --type expense --amount 12.00 \
+  --description "Grocery run" --date 2026-09-12 \
+  --items '[{"name":"Milk 2%","quantity":2,"unit":"szt","unit_price":3.50,"amount":7.00},
+            {"name":"Apples","quantity":1.25,"unit":"kg","unit_price":4.00,"discount":0.50,"amount":4.50},
+            {"name":"Returnable packaging","amount":-0.50}]'
+```
+
+`amount` позиции — итог строки после скидки (`discount` хранится положительным); `name` и `amount` обязательны, `quantity` по умолчанию `1`. В `transactions update` отсутствие `--items` не меняет позиции, `--items '[]'` удаляет их, любой другой массив полностью заменяет набор. Поиск `transactions list --search` находит операции и по названиям позиций.
+
 Для крупных или вложенных документов используйте `--file`, для готового JSON — `--data`. Отдельные `--field key=value` переопределяют поля документа.
 
 ```bash
@@ -78,7 +91,10 @@ aurum transactions list --year 2026 --month 9 --page-size 100
 aurum transactions list --search "market" --sort amount_desc
 aurum cash-flow get --start-date 2026-01-01 --end-date 2026-12-31
 aurum crypto history --range 90d --portfolio-id 2
+aurum reports item-spending --start-date 2026-01-01 --end-date 2026-12-31 --search milk --limit 20
 ```
+
+`reports item-spending` показывает, на какие товары уходят деньги: позиции чеков расходных операций сгруппированы по названию без учёта регистра, для каждого товара — общая сумма, количество, единица, число покупок, средняя цена за единицу и дата последней покупки; суммы в валюте настроек.
 
 Успешный ответ печатается как форматированный JSON. `--compact` убирает отступы, а `--output PATH` записывает ответ в файл с правами `0600`.
 

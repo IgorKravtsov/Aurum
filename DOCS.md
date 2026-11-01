@@ -303,7 +303,8 @@ Field rules, enforced server-side:
     `kind` if given (an `income` transaction can't use an `expense` category). `transfer_account_id`
     must be omitted.
   - `transfer`: `transfer_account_id` is **required** and must differ from `account_id`.
-    `category_id` must be omitted — transfers aren't categorized. `splits` aren't valid either.
+    `category_id` must be omitted — transfers aren't categorized. `splits` and `items` aren't valid
+    either.
     For different account currencies, `destination_amount` is also required and records the amount
     actually credited. For the same currency it is set to `amount` automatically.
 - `amount`: required, `> 0` (transfers/expenses aren't signed negative — direction comes from
@@ -315,16 +316,24 @@ Field rules, enforced server-side:
 - `tag_ids`: optional list of existing tag IDs. Unknown IDs return `400`.
 - `splits`: optional list of `{"category_id": ..., "amount": ..., "note": ...}` — divides the
   transaction across 2+ categories instead of one. See **Splitting a transaction** below.
+- `items`: optional list of receipt line items — the individual products the money bought. See
+  **Receipt line items** below.
 
 **Update** (`TransactionUpdate`) accepts the same fields, all optional, plus the same
 type/category/transfer/split consistency rules applied to the *effective* (merged) values. `tag_ids`:
 omit to leave tags untouched; send (even `[]`) to replace the full tag set. `splits`: omit to leave
 splits untouched; send (even `[]`) to replace the full split set — send `[]` together with a
-`category_id` to turn a split transaction back into a normal single-category one.
+`category_id` to turn a split transaction back into a normal single-category one. `items` follows
+the same rule: omit to leave line items untouched; send a list to replace the full set; send `[]` to
+remove them.
 
 **Response** (`TransactionRead`): the input fields plus `id`, and the nested `account`
 (`AccountRead`), `category` (`CategoryRead` or `null`), `tags` (`TagRead[]`), `splits`
-(`TransactionSplitRead[]`, empty for a normal non-split transaction).
+(`TransactionSplitRead[]`, empty for a normal non-split transaction), `items`
+(`TransactionItemRead[]`, empty when no receipt was attached) and `items_total` (sum of the items'
+`amount`, or `null` when there are none).
+
+`GET /transactions?search=` also matches the names of a transaction's receipt line items.
 
 ### Splitting a transaction across categories
 
@@ -368,6 +377,54 @@ Aggregation endpoints are split-aware: `/dashboard/summary`'s `spending_by_categ
 touches (rolled up to the shared parent), not just once under a single category — a receipt split
 $60/$24.20 between Sweets and Alcohol above contributes exactly those amounts to each subcategory's
 total under Groceries.
+
+### Receipt line items
+
+The individual products from a shop receipt can be attached to an `expense` (or `income`)
+transaction, to see later what exactly the money went on. Line items are independent of `splits`
+and of the transaction's own `category_id` — they describe the purchase rather than divide it:
+
+```json
+{
+  "account_id": 1,
+  "type": "expense",
+  "amount": 12.00,
+  "description": "Grocery run",
+  "date": "2026-08-29",
+  "items": [
+    { "name": "Milk 2%", "quantity": 2, "unit": "szt", "unit_price": 3.50, "amount": 7.00 },
+    { "name": "Apples", "quantity": 1.25, "unit": "kg", "unit_price": 4.00, "discount": 0.50,
+      "amount": 4.50, "category_id": 4 },
+    { "name": "Returnable packaging", "amount": -0.50 }
+  ]
+}
+```
+
+Fields of each item (`TransactionItemInput`):
+
+| Field | Required | Rules |
+|---|---|---|
+| `name` | yes | 1–200 chars, trimmed; must not be blank. |
+| `amount` | yes | Final line total actually paid, after `discount`. Up to 14 digits/2 decimals. May be `0` or negative (e.g. a deposit-return line). |
+| `quantity` | no | Default `1`. `> 0`, up to 12 digits/3 decimals (weights like `1.250`). |
+| `unit` | no | Up to 16 chars as printed on the receipt (`szt`, `kg`, `l`, …). |
+| `unit_price` | no | `>= 0`, up to 14 digits/2 decimals. |
+| `discount` | no | Default `0`. Stored positive: the amount knocked off this line (already reflected in `amount`). |
+| `category_id` | no | An existing category of the transaction's own kind; unknown IDs or a kind mismatch return `400`. |
+
+Rules, enforced on create, bulk create and update (against the row as it would look *after* the
+change):
+
+- Not valid on a `transfer` transaction (`422` on create, `400` on update — including switching a
+  transaction that still has items to `transfer`; send `"items": []` in the same patch to allow it).
+- The items **don't** have to add up to the transaction's `amount` — a receipt may be entered
+  partially. Compare `items_total` with `amount` to show the difference.
+- At most 500 items per transaction. Order is the order of the list; the server stores it as
+  `position`.
+
+`TransactionItemRead` returns the same fields plus `id`, `position` and the nested `category`
+(`CategoryRead` or `null`). Deleting a transaction deletes its items; deleting a category leaves the
+item with `category_id: null`.
 
 ### Bulk create (`POST /transactions/bulk`)
 
@@ -712,6 +769,7 @@ into an external dashboard without recomputing it yourself.
 | `GET` | `/cash-flow` | Income vs. expense, month by month. `?start_date=&end_date=` (default: no bound, i.e. all history). |
 | `GET` | `/reports/category-spending` | One category's spend over time. `?category_id=` (required) `&start_date=&end_date=`. |
 | `GET` | `/reports/category-ranking` | All categories ranked by total spend over a period. `?kind=expense\|income` (default `expense`) `&start_date=&end_date=`. |
+| `GET` | `/reports/item-spending` | Spending per product from receipt line items of expense transactions. `?start_date=&end_date=&search=&account_id=&limit=` (`limit` 1–500, default 50). |
 
 **`GET /dashboard/summary` response:**
 
@@ -734,6 +792,28 @@ into an external dashboard without recomputing it yourself.
   "total_income": "62400.00", "total_expense": "40800.00", "total_net": "21600.00"
 }
 ```
+
+**`GET /reports/item-spending` response:**
+
+```json
+{
+  "start_date": "2026-01-01", "end_date": "2026-03-31", "search": "milk", "account_id": null,
+  "currency": "USD", "total_amount": "10.50", "product_count": 1, "purchase_count": 2,
+  "items": [
+    { "name": "Milk 2%", "total_amount": "10.50", "total_quantity": "3.000", "unit": "szt",
+      "purchase_count": 2, "avg_unit_price": "3.50", "last_date": "2026-02-05" }
+  ]
+}
+```
+
+Line items are grouped by a normalized name (case-insensitive, surrounding and repeated whitespace
+ignored); `name` is the spelling from the most recent purchase. Only `expense` transactions count.
+Amounts are converted to the settings currency at each transaction's historical rate, same as the
+other reports. `unit` is the most common unit among the product's lines, `purchase_count` the number
+of distinct transactions, `avg_unit_price` = `total_amount / total_quantity` (the effective price
+after discounts, `null` if quantities sum to zero). `search` is a case-insensitive substring match on
+the item name. `total_amount`, `product_count` and `purchase_count` cover every matching product,
+not only the `limit` returned in `items`.
 
 ## Insights & Advice
 
@@ -816,6 +896,10 @@ curl -u user:pass -X POST http://localhost:3000/api/backup/import \
 The payload includes an `aurum_backup_version` field checked on import — a file from an incompatible
 future format is rejected outright rather than partially applied. Treat `/backup/import` as
 destructive: back up your current data first if you're experimenting.
+
+Receipt line items travel in a top-level `transaction_items` array (flat rows with `transaction_id`
+and `position`). The format version is unchanged: a backup exported before line items existed simply
+has no such array and still imports, restoring transactions without items.
 
 ## Recipes
 

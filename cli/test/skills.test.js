@@ -20,8 +20,13 @@ test("skills get выдаёт руководство установленной 
   assert.match(core, /Ничего не записывайте без явного подтверждения/);
   assert.doesNotMatch(core, /# Полный справочник Aurum CLI/);
 
+  assert.match(core, /items_total/);
+  assert.match(core, /reports item-spending/);
+
   const full = await runSkills(["skills", "get", "core"], { full: true });
   assert.match(full, /# Полный справочник Aurum CLI/);
+  assert.match(full, /Позиция чека/);
+  assert.match(full, /reports item-spending \[--start-date DATE\]/);
 });
 
 test("install-skill.sh устанавливает одинаковый discovery-скилл для Agents и Claude", async () => {

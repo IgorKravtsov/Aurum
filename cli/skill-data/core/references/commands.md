@@ -100,6 +100,8 @@ cash-flow get [--start-date DATE] [--end-date DATE]
 net-worth summary [--range 30d|90d|1y|5y|all]
 reports category-spending --category-id ID [--start-date DATE] [--end-date DATE]
 reports category-ranking [--kind income|expense] [--start-date DATE] [--end-date DATE]
+reports item-spending [--start-date DATE] [--end-date DATE] [--search TEXT]
+                      [--account-id ID] [--limit N]
 insights alerts
 advice get
 settings get
@@ -115,7 +117,8 @@ backup import
 - Счёт: `name`, `type`, `currency`, `color`; при обновлении также `is_archived`.
 - Категория: `name`, `kind`, `icon`, `color`, `sort_order`, `parent_id` (`kind` задаётся только при создании).
 - Тег: `name`.
-- Операция: `account_id`, `category_id`, `transfer_account_id`, `type`, `amount`, `destination_amount`, `description`, `merchant`, `notes`, `date`, `tag_ids`, `splits`. Bulk-тело: `{"items":[...]}`.
+- Операция: `account_id`, `category_id`, `transfer_account_id`, `type`, `amount`, `destination_amount`, `description`, `merchant`, `notes`, `date`, `tag_ids`, `splits`, `items`. Bulk-тело: `{"items":[...]}` — каждая операция в нём тоже может содержать свои `items`.
+- Позиция чека (элемент `items` операции): `name` (обязательно, до 200 символов), `amount` (обязательно — итог строки после скидки; может быть `0` или отрицательным, например возврат залога за тару), `quantity` (по умолчанию `1`, до 3 знаков после запятой), `unit` (до 16 символов, например `szt`, `kg`), `unit_price`, `discount` (положительная сумма скидки, по умолчанию `0`), `category_id` (необязательно, категория того же вида, что и операция). Порядок позиций — порядок в массиве. Позиции не допускаются у переводов и не обязаны в сумме давать `amount` операции. При PATCH: без `items` позиции не меняются, `items` (даже `[]`) полностью заменяет набор, `[]` очищает. В ответе операции — `items` (с `id`, `position`, вложенной `category`) и `items_total` (сумма `amount` позиций или `null`, если позиций нет); разницу с `amount` операции показывайте пользователю.
 - Регулярная операция: поля обычной операции без тегов/разбиений, плюс `frequency` (`weekly`, `monthly`, `yearly`), `anchor_date`; при обновлении также `is_active`.
 - Бюджет: `category_id`, `monthly_limit`; при обновлении — `monthly_limit`.
 - Цель: `name`, `target_amount`, `target_date`. Взнос: `amount`, `date`, `note`; отрицательная сумма означает снятие, ноль запрещён.
@@ -125,6 +128,10 @@ backup import
 - Метаданные криптоактива: `network`. Криптооперация: `type` (`buy` или `sell`), `quantity`, `price_per_unit`, `date`, `note`.
 - Настройки: `currency`, `negative_cash_flow_threshold_months`, `net_worth_decline_threshold_months`, `risky_allocation_threshold_percent`, `idle_cash_threshold_amount`, `idle_cash_threshold_days`.
 - Импорт бэкапа принимает без изменений JSON, ранее полученный через `backup export`.
+
+## Отчёт по товарам
+
+`reports item-spending` группирует позиции чеков расходных операций по нормализованному названию (без учёта регистра и лишних пробелов) и возвращает `currency`, `total_amount`, `product_count`, `purchase_count` и `items` — по каждому товару `name`, `total_amount`, `total_quantity`, `unit` (самая частая), `purchase_count` (число операций), `avg_unit_price` (`total_amount / total_quantity`, с учётом скидок), `last_date`. Суммы пересчитаны в валюту настроек по курсу на дату операции. `--search` ищет подстроку в названии без учёта регистра, `--limit` (1–500, по умолчанию 50) ограничивает только список, итоги считаются по всем товарам.
 
 Точные ограничения схемы конкретного запущенного сервера доступны в его `/api/docs` или `/api/openapi.json`.
 
