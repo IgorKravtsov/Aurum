@@ -8,7 +8,7 @@ from app.models.goal import Goal, GoalContribution
 from app.models.recurring import RecurringTransaction
 from app.models.settings import AppSettings
 from app.models.tag import Tag
-from app.models.transaction import Transaction, TransactionSplit
+from app.models.transaction import Transaction, TransactionItem, TransactionSplit
 
 __all__ = [
     "Account",
@@ -27,5 +27,6 @@ __all__ = [
     "RecurringTransaction",
     "Tag",
     "Transaction",
+    "TransactionItem",
     "TransactionSplit",
 ]

@@ -1,7 +1,7 @@
 from datetime import date as date_
 from decimal import Decimal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validator, model_validator
 
 from app.core.text import capitalize_first_letter
 from app.models.enums import TransactionType
@@ -73,6 +73,28 @@ def split_rule_violation(
     return None
 
 
+# Upper bound per transaction — generous for even a long hypermarket
+# receipt, while keeping a single request from carrying an unbounded list.
+MAX_ITEMS_PER_TRANSACTION = 500
+
+
+def item_rule_violation(*, type: TransactionType, item_count: int) -> str | None:
+    """The receipt line item invariants, same shape as split_rule_violation
+    above — checked on create, and on update against the row as it would
+    look after the patch (so switching a transaction with items to a
+    transfer is refused too, not just sending items with a transfer).
+
+    Deliberately *no* sum check: unlike splits, items describe a purchase
+    rather than divide it, and a receipt may be entered only partially.
+    TransactionRead.items_total lets clients surface any discrepancy.
+    """
+    if item_count == 0:
+        return None
+    if type == TransactionType.TRANSFER:
+        return "items are not valid for transfer transactions"
+    return None
+
+
 class TransactionFields(BaseModel):
     """A transaction's shape, without the rules that only make sense while
     writing one. Reading goes through this: rows already in the database can
@@ -125,6 +147,37 @@ class TransactionSplitInput(BaseModel):
     note: str | None = Field(default=None, max_length=200)
 
 
+class TransactionItemInput(BaseModel):
+    """One receipt line as sent by a client. Ordering on the receipt is the
+    order of the list itself — the server assigns `position` from it."""
+
+    name: str = Field(min_length=1, max_length=200)
+    quantity: Decimal = Field(default=Decimal("1"), gt=0, max_digits=12, decimal_places=3)
+    unit: str | None = Field(default=None, max_length=16)
+    unit_price: Decimal | None = Field(default=None, ge=0, max_digits=14, decimal_places=2)
+    # Positive amount knocked off this line; already reflected in `amount`.
+    discount: Decimal = Field(default=Decimal("0"), ge=0, max_digits=14, decimal_places=2)
+    # Final line total actually paid. Zero and negative values are valid —
+    # a deposit-return line reduces the receipt total.
+    amount: Decimal = Field(max_digits=14, decimal_places=2)
+    category_id: int | None = None
+
+    @field_validator("name")
+    @classmethod
+    def _strip_name(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("item name must not be blank")
+        return value
+
+    @field_validator("unit")
+    @classmethod
+    def _strip_unit(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        return value.strip() or None
+
+
 class TransactionCreate(TransactionBase):
     tag_ids: list[int] = Field(default_factory=list)
     # None/omitted -> a normal single-category transaction, unchanged from
@@ -133,6 +186,16 @@ class TransactionCreate(TransactionBase):
     # split_rule_violation). A single entry isn't accepted: that's just
     # category_id with extra steps.
     splits: list[TransactionSplitInput] | None = None
+    # Optional receipt line items (see models/transaction.py's
+    # TransactionItem) — independent of splits and of category_id.
+    items: list[TransactionItemInput] | None = Field(default=None, max_length=MAX_ITEMS_PER_TRANSACTION)
+
+    @model_validator(mode="after")
+    def _validate_items(self) -> "TransactionCreate":
+        violation = item_rule_violation(type=self.type, item_count=len(self.items or []))
+        if violation:
+            raise ValueError(violation)
+        return self
 
     @model_validator(mode="after")
     def _validate_splits(self) -> "TransactionCreate":
@@ -166,6 +229,9 @@ class TransactionUpdate(BaseModel):
     # split set (send [] together with a category_id to turn a split
     # transaction back into a normal single-category one).
     splits: list[TransactionSplitInput] | None = None
+    # Same semantics as splits: omitted -> items untouched; sent (even as
+    # []) -> replaces the full set of receipt line items ([] clears them).
+    items: list[TransactionItemInput] | None = Field(default=None, max_length=MAX_ITEMS_PER_TRANSACTION)
 
     @field_validator("description")
     @classmethod
@@ -183,6 +249,21 @@ class TransactionSplitRead(BaseModel):
     note: str | None
 
 
+class TransactionItemRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    name: str
+    quantity: Decimal
+    unit: str | None
+    unit_price: Decimal | None
+    discount: Decimal
+    amount: Decimal
+    category_id: int | None
+    category: CategoryRead | None = None
+    position: int
+
+
 class TransactionRead(TransactionFields):
     model_config = ConfigDict(from_attributes=True)
 
@@ -191,6 +272,17 @@ class TransactionRead(TransactionFields):
     category: CategoryRead | None = None
     tags: list[TagRead] = Field(default_factory=list)
     splits: list[TransactionSplitRead] = Field(default_factory=list)
+    items: list[TransactionItemRead] = Field(default_factory=list)
+
+    # Sum of the receipt line amounts, or null when there are none. Not
+    # required to equal `amount` (receipts may be entered partially) —
+    # clients compare the two to show the difference.
+    @computed_field
+    @property
+    def items_total(self) -> Decimal | None:
+        if not self.items:
+            return None
+        return sum((item.amount for item in self.items), Decimal("0"))
 
 
 class TransactionPage(BaseModel):

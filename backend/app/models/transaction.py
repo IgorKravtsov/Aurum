@@ -1,7 +1,7 @@
 """A single money movement: income, expense, or a transfer between accounts."""
 from datetime import date as date_
 
-from sqlalchemy import Date, Enum, ForeignKey, Numeric, String, Text
+from sqlalchemy import Date, Enum, ForeignKey, Integer, Numeric, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -41,6 +41,13 @@ class Transaction(Base, TimestampMixin):
     splits: Mapped[list["TransactionSplit"]] = relationship(
         back_populates="transaction", cascade="all, delete-orphan", order_by="TransactionSplit.id"
     )
+    # Receipt line items — what exactly was bought. Independent of splits
+    # (see TransactionItem below), ordered the way the receipt lists them.
+    items: Mapped[list["TransactionItem"]] = relationship(
+        back_populates="transaction",
+        cascade="all, delete-orphan",
+        order_by="[TransactionItem.position, TransactionItem.id]",
+    )
 
 
 class TransactionSplit(Base):
@@ -66,4 +73,42 @@ class TransactionSplit(Base):
     note: Mapped[str | None] = mapped_column(String(200), nullable=True)
 
     transaction: Mapped["Transaction"] = relationship(back_populates="splits")
+    category: Mapped["Category | None"] = relationship()
+
+
+class TransactionItem(Base):
+    """One product line from a shop receipt attached to a transaction — the
+    answer to "what exactly did this money buy", tracked per product name
+    (see services/item_spending_service.py's report).
+
+    A separate concept from TransactionSplit on purpose: splits divide the
+    transaction's amount across categories and must add up to it exactly,
+    while items only describe it and are allowed to be partial (a
+    half-legible receipt, or only the interesting lines entered). The read
+    schema exposes items_total so clients can show the discrepancy instead.
+
+    amount is the final line total actually paid, after `discount` (which is
+    stored positive). It may be zero or even negative — a deposit-return
+    line ("returnable packaging -3.50") reduces the receipt total.
+    category_id is nullable + SET NULL for the same reason as on
+    TransactionSplit: deleting a category must not break reading old items.
+    """
+
+    __tablename__ = "transaction_items"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    transaction_id: Mapped[int] = mapped_column(
+        ForeignKey("transactions.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    quantity: Mapped[Numeric] = mapped_column(Numeric(12, 3), nullable=False, default=1, server_default="1")
+    # Free-form unit label as printed on the receipt ("szt", "kg", "l").
+    unit: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    unit_price: Mapped[Numeric | None] = mapped_column(Numeric(14, 2), nullable=True)
+    discount: Mapped[Numeric] = mapped_column(Numeric(14, 2), nullable=False, default=0, server_default="0")
+    amount: Mapped[Numeric] = mapped_column(Numeric(14, 2), nullable=False)
+    category_id: Mapped[int | None] = mapped_column(ForeignKey("categories.id", ondelete="SET NULL"), nullable=True)
+    position: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+
+    transaction: Mapped["Transaction"] = relationship(back_populates="items")
     category: Mapped["Category | None"] = relationship()

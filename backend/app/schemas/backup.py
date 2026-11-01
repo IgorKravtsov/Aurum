@@ -94,6 +94,21 @@ class TransactionSplitBackup(BaseModel):
     note: str | None
 
 
+class TransactionItemBackup(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    transaction_id: int
+    name: str
+    quantity: Decimal
+    unit: str | None
+    unit_price: Decimal | None
+    discount: Decimal
+    amount: Decimal
+    category_id: int | None
+    position: int
+
+
 class AssetBackup(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -249,6 +264,9 @@ class BackupPayload(BaseModel):
     # Defaulted so a backup exported before transaction splitting existed
     # still imports cleanly under the same format version.
     transaction_splits: list[TransactionSplitBackup] = Field(default_factory=list)
+    # Defaulted so a backup exported before receipt line items existed
+    # still imports cleanly under the same format version.
+    transaction_items: list[TransactionItemBackup] = Field(default_factory=list)
     assets: list[AssetBackup]
     asset_valuations: list[AssetValuationBackup]
     # Defaulted so a backup exported before crypto holdings/portfolios

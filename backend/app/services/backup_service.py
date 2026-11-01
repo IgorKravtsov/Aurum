@@ -28,7 +28,7 @@ from app.models.goal import Goal, GoalContribution
 from app.models.recurring import RecurringTransaction
 from app.models.settings import AppSettings
 from app.models.tag import Tag
-from app.models.transaction import Transaction, TransactionSplit
+from app.models.transaction import Transaction, TransactionItem, TransactionSplit
 from app.schemas.backup import (
     AccountBackup,
     AppSettingsBackup,
@@ -46,6 +46,7 @@ from app.schemas.backup import (
     RecurringTransactionBackup,
     TagBackup,
     TransactionBackup,
+    TransactionItemBackup,
     TransactionSplitBackup,
 )
 
@@ -60,6 +61,7 @@ async def build_backup(session: AsyncSession) -> BackupPayload:
     tags = (await session.execute(select(Tag))).scalars().all()
     transactions = (await session.execute(select(Transaction).options(selectinload(Transaction.tags)))).scalars().all()
     transaction_splits = (await session.execute(select(TransactionSplit))).scalars().all()
+    transaction_items = (await session.execute(select(TransactionItem))).scalars().all()
     assets = (await session.execute(select(Asset))).scalars().all()
     valuations = (await session.execute(select(AssetValuation))).scalars().all()
     crypto_portfolios = (await session.execute(select(CryptoPortfolio))).scalars().all()
@@ -86,6 +88,7 @@ async def build_backup(session: AsyncSession) -> BackupPayload:
             for row in transactions
         ],
         transaction_splits=[TransactionSplitBackup.model_validate(row) for row in transaction_splits],
+        transaction_items=[TransactionItemBackup.model_validate(row) for row in transaction_items],
         assets=[AssetBackup.model_validate(row) for row in assets],
         asset_valuations=[AssetValuationBackup.model_validate(row) for row in valuations],
         crypto_portfolios=[CryptoPortfolioBackup.model_validate(row) for row in crypto_portfolios],
@@ -129,6 +132,11 @@ def _validate_references(payload: BackupPayload) -> None:
             raise HTTPException(400, f"Transaction split {s.id} references unknown transaction_id {s.transaction_id}")
         if s.category_id is not None and s.category_id not in category_ids:
             raise HTTPException(400, f"Transaction split {s.id} references unknown category_id {s.category_id}")
+    for i in payload.transaction_items:
+        if i.transaction_id not in transaction_ids:
+            raise HTTPException(400, f"Transaction item {i.id} references unknown transaction_id {i.transaction_id}")
+        if i.category_id is not None and i.category_id not in category_ids:
+            raise HTTPException(400, f"Transaction item {i.id} references unknown category_id {i.category_id}")
 
     for v in payload.asset_valuations:
         if v.asset_id not in asset_ids:
@@ -207,9 +215,11 @@ async def restore_backup(session: AsyncSession, payload: BackupPayload) -> None:
         await session.execute(delete(GoalContribution))
         await session.execute(delete(Goal))
         await session.execute(delete(RecurringTransaction))
-        # Deleting transactions cascades transaction_tags and
-        # transaction_splits rows (ON DELETE CASCADE) — deleted explicitly
-        # here anyway to keep this block's ordering self-documenting.
+        # Deleting transactions cascades transaction_tags,
+        # transaction_splits and transaction_items rows (ON DELETE CASCADE)
+        # — deleted explicitly here anyway to keep this block's ordering
+        # self-documenting.
+        await session.execute(delete(TransactionItem))
         await session.execute(delete(TransactionSplit))
         await session.execute(delete(Transaction))
         await session.execute(delete(Tag))
@@ -242,6 +252,7 @@ async def restore_backup(session: AsyncSession, payload: BackupPayload) -> None:
         }
         session.add_all(transactions_by_id.values())
         session.add_all(TransactionSplit(**row.model_dump()) for row in payload.transaction_splits)
+        session.add_all(TransactionItem(**row.model_dump()) for row in payload.transaction_items)
 
         session.add_all(AssetValuation(**row.model_dump()) for row in payload.asset_valuations)
 
@@ -288,6 +299,7 @@ async def restore_backup(session: AsyncSession, payload: BackupPayload) -> None:
         await _reset_sequence(session, "assets", payload.assets)
         await _reset_sequence(session, "transactions", payload.transactions)
         await _reset_sequence(session, "transaction_splits", payload.transaction_splits)
+        await _reset_sequence(session, "transaction_items", payload.transaction_items)
         await _reset_sequence(session, "asset_valuations", payload.asset_valuations)
         # Only needed for explicit-id portfolios from payload — a fallback
         # portfolio (no payload row) already got its id from the sequence

@@ -13,15 +13,17 @@ from app.models.account import Account
 from app.models.category import Category
 from app.models.enums import CategoryKind, TransactionType
 from app.models.tag import Tag
-from app.models.transaction import Transaction, TransactionSplit
+from app.models.transaction import Transaction, TransactionItem, TransactionSplit
 from app.schemas.transaction import (
     TransactionBulkCreate,
     TransactionBulkCreateResult,
     TransactionCreate,
+    TransactionItemInput,
     TransactionPage,
     TransactionRead,
     TransactionSplitInput,
     TransactionUpdate,
+    item_rule_violation,
     split_rule_violation,
     transfer_rule_violation,
 )
@@ -33,6 +35,7 @@ _EAGER = (
     selectinload(Transaction.category),
     selectinload(Transaction.tags),
     selectinload(Transaction.splits).selectinload(TransactionSplit.category),
+    selectinload(Transaction.items).selectinload(TransactionItem.category),
 )
 
 
@@ -134,6 +137,41 @@ async def _build_splits(
     return [TransactionSplit(category_id=s.category_id, amount=s.amount, note=s.note) for s in splits]
 
 
+async def _build_items(
+    session: AsyncSession, items: list[TransactionItemInput], transaction_type: TransactionType
+) -> list[TransactionItem]:
+    """Receipt line items, positioned in the order they were sent. An
+    item's optional category goes through the same live-category and
+    kind-matches-type check as the transaction's own category and its
+    splits — but, unlike splits, items carry no same-parent rule: one
+    receipt can genuinely hold groceries next to household goods."""
+    checked: set[int] = set()
+    for item in items:
+        if item.category_id is not None and item.category_id not in checked:
+            await _ensure_category_matches_type(session, item.category_id, transaction_type)
+            checked.add(item.category_id)
+    return [
+        TransactionItem(
+            name=item.name,
+            quantity=item.quantity,
+            unit=item.unit,
+            unit_price=item.unit_price,
+            discount=item.discount,
+            amount=item.amount,
+            category_id=item.category_id,
+            position=index,
+        )
+        for index, item in enumerate(items)
+    ]
+
+
+async def _ensure_item_categories_match_type(
+    session: AsyncSession, items: list[TransactionItem], transaction_type: TransactionType
+) -> None:
+    for category_id in {item.category_id for item in items if item.category_id is not None}:
+        await _ensure_category_matches_type(session, category_id, transaction_type)
+
+
 @router.get("", response_model=TransactionPage)
 async def list_transactions(
     year: int | None = Query(default=None, ge=2000, le=2100),
@@ -187,12 +225,14 @@ async def list_transactions(
     if search is not None:
         # Lets the user find a transaction from any period by keyword (e.g. an
         # item bought months ago) without knowing which month to look in first —
-        # matches description, merchant, and notes so any of those fields can surface it.
+        # matches description, merchant, and notes so any of those fields can surface it,
+        # plus the names of receipt line items attached to the transaction.
         pattern = f"%{search.strip()}%"
         search_clause = or_(
             Transaction.description.ilike(pattern),
             Transaction.merchant.ilike(pattern),
             Transaction.notes.ilike(pattern),
+            Transaction.items.any(TransactionItem.name.ilike(pattern)),
         )
         stmt = stmt.where(search_clause)
         count_stmt = count_stmt.where(search_clause)
@@ -230,7 +270,7 @@ async def list_transaction_years(session: AsyncSession = Depends(get_session)) -
 @router.post("", response_model=TransactionRead, status_code=201)
 async def create_transaction(payload: TransactionCreate, session: AsyncSession = Depends(get_session)) -> Transaction:
     await _ensure_category_matches_type(session, payload.category_id, payload.type)
-    fields = payload.model_dump(exclude={"tag_ids", "splits"})
+    fields = payload.model_dump(exclude={"tag_ids", "splits", "items"})
     fields["destination_amount"] = await _normalise_destination_amount(
         session,
         transaction_type=payload.type,
@@ -243,6 +283,8 @@ async def create_transaction(payload: TransactionCreate, session: AsyncSession =
     transaction.tags = await _resolve_tags(session, payload.tag_ids)
     if payload.splits:
         transaction.splits = await _build_splits(session, payload.splits, payload.type)
+    if payload.items:
+        transaction.items = await _build_items(session, payload.items, payload.type)
     session.add(transaction)
     await session.commit()
     refreshed = await session.execute(
@@ -263,7 +305,7 @@ async def bulk_create_transactions(
 
     transactions = []
     for item in payload.items:
-        fields = item.model_dump(exclude={"tag_ids", "splits"})
+        fields = item.model_dump(exclude={"tag_ids", "splits", "items"})
         fields["destination_amount"] = await _normalise_destination_amount(
             session,
             transaction_type=item.type,
@@ -276,6 +318,8 @@ async def bulk_create_transactions(
         transaction.tags = await _resolve_tags(session, item.tag_ids)
         if item.splits:
             transaction.splits = await _build_splits(session, item.splits, item.type)
+        if item.items:
+            transaction.items = await _build_items(session, item.items, item.type)
         transactions.append(transaction)
 
     session.add_all(transactions)
@@ -290,16 +334,18 @@ async def bulk_create_transactions(
 async def update_transaction(
     transaction_id: int, payload: TransactionUpdate, session: AsyncSession = Depends(get_session)
 ) -> Transaction:
-    # Eager-loads tags and splits — assigning transaction.tags/splits below
+    # Eager-loads tags, splits and items — assigning transaction.tags/splits/items below
     # would otherwise lazy-load the current collection first to diff
     # against, which async SQLAlchemy can't do outside an explicit await
     # (MissingGreenlet).
     transaction = await session.get(
-        Transaction, transaction_id, options=[selectinload(Transaction.tags), selectinload(Transaction.splits)]
+        Transaction,
+        transaction_id,
+        options=[selectinload(Transaction.tags), selectinload(Transaction.splits), selectinload(Transaction.items)],
     )
     if transaction is None:
         raise HTTPException(status_code=404, detail="Transaction not found")
-    updates = payload.model_dump(exclude_unset=True, exclude={"tag_ids", "splits"})
+    updates = payload.model_dump(exclude_unset=True, exclude={"tag_ids", "splits", "items"})
     # Checks run against the row as it would look after the patch, not just
     # the fields sent: switching type alone can invalidate fields left
     # untouched.
@@ -351,12 +397,26 @@ async def update_transaction(
     if split_violation:
         raise HTTPException(status_code=400, detail=split_violation)
 
+    # Items untouched by this patch are checked as they stand, so e.g.
+    # turning an expense with a receipt into a transfer is refused too.
+    item_count = len(payload.items) if payload.items is not None else len(transaction.items)
+    item_violation = item_rule_violation(type=effective_type, item_count=item_count)
+    if item_violation:
+        raise HTTPException(status_code=400, detail=item_violation)
+
     for field, value in updates.items():
         setattr(transaction, field, value)
     if payload.tag_ids is not None:
         transaction.tags = await _resolve_tags(session, payload.tag_ids)
     if payload.splits is not None:
         transaction.splits = await _build_splits(session, payload.splits, effective_type)
+    if payload.items is not None:
+        transaction.items = await _build_items(session, payload.items, effective_type)
+    elif "type" in updates and transaction.items:
+        # Existing items' categories were checked against the old type; a
+        # switch between income and expense must not leave them pointing
+        # at categories of the wrong kind.
+        await _ensure_item_categories_match_type(session, transaction.items, effective_type)
     await session.commit()
     refreshed = await session.execute(
         select(Transaction).options(*_EAGER).where(Transaction.id == transaction_id)
