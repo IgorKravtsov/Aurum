@@ -6,10 +6,23 @@ edition.workspace = true
 rust-version.workspace = true
 publish.workspace = true
 
+# The TLS backend is chosen per build, so aurum-ffi can use `ring` (aws-lc-rs
+# is painful to cross-compile for iOS/Android) while the CLI keeps rustls'
+# default provider. Exactly one of the two features is meant to be enabled;
+# if Cargo unifies both in one workspace build, `ring` wins (see client.rs).
+[features]
+default = ["tls-aws-lc-rs"]
+tls-aws-lc-rs = ["reqwest/rustls"]
+tls-ring = ["reqwest/rustls-no-provider", "dep:rustls"]
+
 [dependencies]
 aurum-domain = { workspace = true }
 base64 = { workspace = true }
-reqwest = { workspace = true }
+# Not `workspace = true` on purpose: the workspace entry enables reqwest's
+# `rustls` feature (aws-lc-rs) for aurum-server, and a workspace dependency
+# cannot opt out of it. Keep the version in sync with the root Cargo.toml.
+reqwest = { version = "0.13.5", default-features = false, features = ["json", "http2"] }
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"], optional = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }

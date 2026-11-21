@@ -146,3 +146,24 @@ jobs:
       # --no-deps: lint only these two crates, not the shared aurum-domain.
       - run: cargo clippy -p aurum-cli -p aurum-client --all-targets --no-deps -- -D warnings
       - run: cargo test -p aurum-cli -p aurum-client
+
+  # Mobile FFI layer: the crate must build, pass its tests against a mock
+  # server, and UniFFI must be able to generate the Swift and Kotlin bindings
+  # from the compiled library. (The iOS/Android cross builds need macOS/NDK
+  # and run locally via crates/aurum-ffi/scripts.)
+  ffi-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - run: cargo fmt -p aurum-ffi --check
+      # --no-deps: lint only aurum-ffi and aurum-client, not the shared aurum-domain.
+      - run: cargo clippy -p aurum-ffi -p aurum-client --all-targets --no-deps -- -D warnings
+      - run: cargo test -p aurum-ffi -p aurum-client
+      - run: crates/aurum-ffi/scripts/gen-bindings.sh
+      - name: Check generated bindings
+        run: |
+          test -s crates/aurum-ffi/bindings/swift/aurum_ffi.swift
+          test -s crates/aurum-ffi/bindings/kotlin/uniffi/aurum_ffi/aurum_ffi.kt

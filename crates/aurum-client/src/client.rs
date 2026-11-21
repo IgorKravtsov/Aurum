@@ -34,6 +34,19 @@ fn decode_text(body: &[u8]) -> String {
     String::from_utf8_lossy(body).into_owned()
 }
 
+/// With the `tls-ring` feature reqwest is built without a bundled crypto
+/// provider, so `ring` has to be installed as the process default before the
+/// first client is built. Idempotent; an already installed provider (the
+/// embedder's own) is left alone.
+#[cfg(feature = "tls-ring")]
+fn install_ring_provider() {
+    static INSTALL: std::sync::Once = std::sync::Once::new();
+    INSTALL.call_once(|| {
+        // `Err` means a default is already installed — nothing to do.
+        let _ = rustls::crypto::ring::default_provider().install_default();
+    });
+}
+
 impl AurumClient {
     /// Shortcut for a client with default timeout/headers.
     /// `base_url` is the API root including `/api`, e.g. `https://aurum.example.com/api`.
@@ -46,6 +59,8 @@ impl AurumClient {
         if !(base_url.starts_with("http://") || base_url.starts_with("https://")) {
             return Err(ClientError::InvalidUrl(base_url));
         }
+        #[cfg(feature = "tls-ring")]
+        install_ring_provider();
         let mut builder = reqwest::Client::builder()
             .user_agent(concat!("aurum-client/", env!("CARGO_PKG_VERSION")))
             .timeout(config.timeout);
