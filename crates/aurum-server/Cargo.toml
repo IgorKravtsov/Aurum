@@ -1,0 +1,36 @@
+[package]
+name = "aurum-server"
+description = "Aurum REST API server (Rust port of backend/, same HTTP contract and Postgres schema)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "aurum-server"
+path = "src/main.rs"
+
+[dependencies]
+aurum-domain = { workspace = true, features = ["sqlx", "openapi"] }
+anyhow = { workspace = true }
+axum = { workspace = true }
+bigdecimal = { workspace = true }
+chrono = { workspace = true }
+clap = { workspace = true }
+dotenvy = { workspace = true }
+http-body-util = { workspace = true }
+reqwest = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_urlencoded = { workspace = true }
+sqlx = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+tower = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+utoipa = { workspace = true }
+utoipa-axum = { workspace = true }
+
+[lints]
+workspace = true

@@ -1,0 +1,1 @@
+//! SQL for `/api/crypto`. Not ported yet — see `repo/tags.rs` for the pattern.
