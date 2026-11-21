@@ -1,0 +1,20 @@
+[package]
+name = "aurum-client"
+description = "Async HTTP client for the Aurum REST API (used by the CLI and the mobile FFI layer)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+aurum-domain = { workspace = true }
+reqwest = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true }
+
+[lints]
+workspace = true
