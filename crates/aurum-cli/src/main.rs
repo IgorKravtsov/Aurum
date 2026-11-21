@@ -1,12 +1,30 @@
-//! Aurum CLI — Rust port of the Node CLI in `cli/` (later phase).
-//!
-//! Skeleton only: it compiles and links against `aurum-client` so the
-//! workspace graph is in place; commands are ported in a later phase.
+//! Entry point of the `aurum` binary: runs the CLI, prints the result to
+//! stdout or the error message to stderr (exit code 1).
 
-fn main() {
-    // Referencing the client keeps the dependency edge honest until the
-    // first real command lands.
-    let _ = std::any::type_name::<aurum_client::AurumClient>();
-    eprintln!("aurum-cli {}: not implemented yet — use the Node CLI in cli/", env!("CARGO_PKG_VERSION"));
-    std::process::exit(2);
+use std::io::Write;
+use std::process::ExitCode;
+
+use aurum_cli::env::Env;
+
+fn main() -> ExitCode {
+    let argv: Vec<String> =
+        std::env::args_os().skip(1).map(|argument| argument.to_string_lossy().into_owned()).collect();
+    let runtime = match tokio::runtime::Builder::new_current_thread().enable_all().build() {
+        Ok(runtime) => runtime,
+        Err(error) => {
+            eprintln!("{error}");
+            return ExitCode::FAILURE;
+        }
+    };
+    match runtime.block_on(aurum_cli::run(&argv, &Env::from_process())) {
+        Ok(output) => {
+            // A closed pipe (`aurum ... | head`) is not an error worth reporting.
+            let _ = std::io::stdout().write_all(output.as_bytes());
+            ExitCode::SUCCESS
+        }
+        Err(error) => {
+            eprintln!("{error}");
+            ExitCode::FAILURE
+        }
+    }
 }
