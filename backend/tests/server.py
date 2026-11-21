@@ -29,7 +29,9 @@ from dotenv import dotenv_values
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
 REPO_ROOT = BACKEND_DIR.parent
-TEST_DB_NAME = "aurum_test"
+# Overridable so several suites (e.g. parallel porting work) can run side by
+# side against the same Postgres without dropping each other's database.
+TEST_DB_NAME = os.environ.get("AURUM_TEST_DB_NAME", "aurum_test")
 SERVER_KIND = os.environ.get("AURUM_TEST_SERVER", "python").strip().lower() or "python"
 STARTUP_TIMEOUT_SECONDS = 60
 
