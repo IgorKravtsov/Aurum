@@ -5,8 +5,8 @@
 #   crates/aurum-server/contract/start_pair.sh [cors_origins]   # start (restarts if running)
 #   crates/aurum-server/contract/start_pair.sh --stop            # stop both
 #
-# Python: http://127.0.0.1:${PY_PORT:-8001} on database aurum_contract_py
-# Rust:   http://127.0.0.1:${RS_PORT:-8002} on database aurum_contract_rs
+# Python: http://127.0.0.1:${PY_PORT:-8001} on database ${PY_DB:-aurum_contract_py}
+# Rust:   http://127.0.0.1:${RS_PORT:-8002} on database ${RS_DB:-aurum_contract_rs}
 #
 # Needs: Postgres reachable via AURUM_POSTGRES_HOST/PORT/USER/PASSWORD
 # (defaults 127.0.0.1:5432 aurum/aurum), `psql` on PATH or a Postgres docker
@@ -18,6 +18,8 @@ REPO=$(cd "$(dirname "$0")/../../.." && pwd)
 DIR=${PAIR_DIR:-/tmp/aurum-contract-pair}
 PY_PORT=${PY_PORT:-8001}
 RS_PORT=${RS_PORT:-8002}
+PY_DB=${PY_DB:-aurum_contract_py}
+RS_DB=${RS_DB:-aurum_contract_rs}
 PYTHON_BIN=${PYTHON_BIN:-python3}
 export AURUM_POSTGRES_HOST=${AURUM_POSTGRES_HOST:-127.0.0.1}
 export AURUM_POSTGRES_PORT=${AURUM_POSTGRES_PORT:-5432}
@@ -46,18 +48,18 @@ stop
 [ "${1:-}" = "--stop" ] && exit 0
 export AURUM_CORS_ORIGINS=${1:-}
 
-for db in aurum_contract_py aurum_contract_rs; do
+for db in "$PY_DB" "$RS_DB"; do
   sql "DROP DATABASE IF EXISTS $db WITH (FORCE)" >/dev/null && sql "CREATE DATABASE $db" >/dev/null || exit 1
 done
 
-(cd "$REPO/backend" && AURUM_POSTGRES_DB=aurum_contract_py "$PYTHON_BIN" -m alembic upgrade head) >"$DIR/py-migrate.log" 2>&1 || {
+(cd "$REPO/backend" && AURUM_POSTGRES_DB=$PY_DB "$PYTHON_BIN" -m alembic upgrade head) >"$DIR/py-migrate.log" 2>&1 || {
   cat "$DIR/py-migrate.log"; exit 1; }
 # Run both from $DIR so neither picks up a developer's backend/.env.
 cd "$DIR" || exit 1
-AURUM_POSTGRES_DB=aurum_contract_py setsid "$PYTHON_BIN" -m uvicorn app.main:app --app-dir "$REPO/backend" \
+AURUM_POSTGRES_DB=$PY_DB setsid "$PYTHON_BIN" -m uvicorn app.main:app --app-dir "$REPO/backend" \
   --host 127.0.0.1 --port "$PY_PORT" >"$DIR/py.log" 2>&1 </dev/null &
 echo $! >"$DIR/py.pid"
-AURUM_POSTGRES_DB=aurum_contract_rs AURUM_HOST=127.0.0.1 AURUM_PORT=$RS_PORT \
+AURUM_POSTGRES_DB=$RS_DB AURUM_HOST=127.0.0.1 AURUM_PORT=$RS_PORT \
   setsid "${AURUM_SERVER_BIN:-$REPO/target/debug/aurum-server}" >"$DIR/rs.log" 2>&1 </dev/null &
 echo $! >"$DIR/rs.pid"
 
