@@ -1,25 +1,28 @@
-"""Mixed-currency amounts are converted before any cross-account aggregate."""
+"""Mixed-currency amounts are converted before any cross-account aggregate.
+
+NBP itself is never called: the server is pointed at a local fake NBP
+(tests/fake_providers.py). Two tests here still drive
+services/fx_service.convert_amounts in-process (there's no endpoint that
+exposes it directly) — they're marked python_internal and skipped when the
+suite runs against another server implementation.
+"""
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 
 import pytest
-from fastapi import HTTPException
+from sqlalchemy import text
 
-from app.models.fx import FxRate
-from app.services import fx_service
 from tests.helpers import money, txn_payload
 
 pytestmark = pytest.mark.asyncio
 
 
 async def test_mixed_currency_aggregates_use_historical_nbp_rates(
-    client, test_sessionmaker, account_id, categories, monkeypatch
+    client, test_sessionmaker, account_id, categories, fake_nbp
 ):
-    async def constant_test_rates(currency: str, requested_dates: set[date]):
-        rates = {"USD": Decimal("4"), "UAH": Decimal("0.1")}
-        return {requested: (requested, rates[currency]) for requested in requested_dates}
-
-    monkeypatch.setattr(fx_service, "_fetch_nbp_currency", constant_test_rates)
+    # Constant test rates: NBP publishes 1 USD = 4 PLN and 1 UAH = 0.1 PLN
+    # on every business day; any other currency is unknown to it.
+    fake_nbp.serve_rates({"USD": Decimal("4"), "UAH": Decimal("0.1")})
     await client.patch("/settings", json={"currency": "PLN"})
     usd_account = (await client.patch(f"/accounts/{account_id}", json={"currency": "USD"})).json()
     uah_account = (
@@ -30,23 +33,27 @@ async def test_mixed_currency_aggregates_use_historical_nbp_rates(
     ).json()
 
     async with test_sessionmaker() as session:
-        session.add_all(
+        await session.execute(
+            text(
+                "INSERT INTO fx_rates (currency, requested_date, effective_date, rate_to_pln, provider) "
+                "VALUES (:currency, :requested_date, :effective_date, :rate_to_pln, :provider)"
+            ),
             [
-                FxRate(
-                    currency="USD",
-                    requested_date=date(2026, 1, 15),
-                    effective_date=date(2026, 1, 15),
-                    rate_to_pln=Decimal("4.000000000000000000"),
-                    provider="test",
-                ),
-                FxRate(
-                    currency="UAH",
-                    requested_date=date(2026, 1, 15),
-                    effective_date=date(2026, 1, 15),
-                    rate_to_pln=Decimal("0.100000000000000000"),
-                    provider="test",
-                ),
-            ]
+                {
+                    "currency": "USD",
+                    "requested_date": date(2026, 1, 15),
+                    "effective_date": date(2026, 1, 15),
+                    "rate_to_pln": Decimal("4.000000000000000000"),
+                    "provider": "test",
+                },
+                {
+                    "currency": "UAH",
+                    "requested_date": date(2026, 1, 15),
+                    "effective_date": date(2026, 1, 15),
+                    "rate_to_pln": Decimal("0.100000000000000000"),
+                    "provider": "test",
+                },
+            ],
         )
         await session.commit()
 
@@ -136,7 +143,13 @@ async def test_mixed_currency_aggregates_use_historical_nbp_rates(
     assert currency_change.status_code == 409
 
 
+@pytest.mark.python_internal
 async def test_cached_weekend_rate_survives_backup_without_provider(client, test_sessionmaker, monkeypatch):
+    from fastapi import HTTPException
+
+    from app.models.fx import FxRate
+    from app.services import fx_service
+
     saturday = date(2026, 1, 17)
     async with test_sessionmaker() as session:
         session.add(
@@ -174,7 +187,11 @@ async def test_cached_weekend_rate_survives_backup_without_provider(client, test
     assert restored["restored"] == Decimal("83")
 
 
+@pytest.mark.python_internal
 async def test_expired_provisional_rate_is_refreshed(test_sessionmaker, monkeypatch):
+    from app.models.fx import FxRate
+    from app.services import fx_service
+
     today = date.today()
     async with test_sessionmaker() as session:
         session.add(

@@ -70,7 +70,13 @@ PORTFOLIO_PALETTE = [
     "#e34948",
 ]
 
-COINGECKO_BASE_URL = "https://api.coingecko.com/api/v3"
+
+def _coingecko_base_url() -> str:
+    """Real CoinGecko API by default (see Settings.coingecko_base_url);
+    overridable so tests can point the server at a local fake provider."""
+    return get_settings().coingecko_base_url.rstrip("/")
+
+
 # CoinGecko's own Demo-tier data only refreshes every 60s server-side
 # (see docs.coingecko.com/reference/simple-price) — polling more often than
 # once a day here buys nothing and only spends rate-limit budget for no
@@ -130,7 +136,7 @@ async def _fetch_market_data(coingecko_ids: list[str], vs_currency: str) -> dict
     api_key = _require_api_key()
     async with httpx.AsyncClient(timeout=10.0) as client:
         response = await client.get(
-            f"{COINGECKO_BASE_URL}/coins/markets",
+            f"{_coingecko_base_url()}/coins/markets",
             params={
                 "vs_currency": vs_currency,
                 "ids": ",".join(coingecko_ids),
@@ -164,7 +170,7 @@ async def search_coins(query: str) -> list[CryptoSearchResult]:
     api_key = _require_api_key()
     async with httpx.AsyncClient(timeout=10.0) as client:
         response = await client.get(
-            f"{COINGECKO_BASE_URL}/search",
+            f"{_coingecko_base_url()}/search",
             params={"query": query},
             headers={"x-cg-demo-api-key": api_key},
         )
@@ -674,7 +680,7 @@ async def _fetch_90d_change(client: httpx.AsyncClient, api_key: str, coingecko_i
     principle as refresh_prices' own CoinGecko-outage handling)."""
     try:
         response = await client.get(
-            f"{COINGECKO_BASE_URL}/coins/{coingecko_id}/market_chart",
+            f"{_coingecko_base_url()}/coins/{coingecko_id}/market_chart",
             params={"vs_currency": vs_currency, "days": 90},
             headers={"x-cg-demo-api-key": api_key},
         )

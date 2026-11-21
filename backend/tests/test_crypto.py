@@ -1,31 +1,25 @@
 """Crypto holdings: buy/sell transaction log, weighted-average cost basis,
 and the lazy/forced price sync. CoinGecko itself is never called in tests —
-services/crypto_service.py's _fetch_market_data is monkeypatched with a
-canned market-data feed instead, same way any external dependency would be.
+the server is pointed at a local fake CoinGecko (tests/fake_providers.py)
+serving a canned market-data feed instead, same way any external dependency
+would be.
 """
 from decimal import Decimal
 
-import httpx
+import pytest
 from httpx import AsyncClient
 
-from app.services import crypto_service
+from tests.fake_providers import MarketPoint
 from tests.helpers import money
 
 
 def _point(price: str, change_1h: str | None = None, change_24h: str | None = None, change_7d: str | None = None):
-    return crypto_service._MarketPoint(
+    return MarketPoint(
         price=Decimal(price),
         change_1h=Decimal(change_1h) if change_1h else None,
         change_24h=Decimal(change_24h) if change_24h else None,
         change_7d=Decimal(change_7d) if change_7d else None,
     )
-
-
-def _fake_fetch(prices: dict[str, "crypto_service._MarketPoint"]):
-    async def fetch(coingecko_ids, vs_currency):
-        return {cid: prices[cid] for cid in coingecko_ids if cid in prices}
-
-    return fetch
 
 
 async def _add_bitcoin(
@@ -52,8 +46,8 @@ async def _add_bitcoin(
     return resp.json()
 
 
-async def test_create_holding_seeds_todays_value_and_position_immediately(client: AsyncClient, monkeypatch):
-    monkeypatch.setattr(crypto_service, "_fetch_market_data", _fake_fetch({"bitcoin": _point("50000")}))
+async def test_create_holding_seeds_todays_value_and_position_immediately(client: AsyncClient, fake_coingecko):
+    fake_coingecko.serve_markets({"bitcoin": _point("50000")})
 
     holding = await _add_bitcoin(client, "0.5", "40000")
 
@@ -67,8 +61,8 @@ async def test_create_holding_seeds_todays_value_and_position_immediately(client
     assert round(holding["profit_loss_percent"], 2) == 25.0
 
 
-async def test_holding_shows_up_in_net_worth_breakdown(client: AsyncClient, monkeypatch):
-    monkeypatch.setattr(crypto_service, "_fetch_market_data", _fake_fetch({"bitcoin": _point("50000")}))
+async def test_holding_shows_up_in_net_worth_breakdown(client: AsyncClient, fake_coingecko):
+    fake_coingecko.serve_markets({"bitcoin": _point("50000")})
     await _add_bitcoin(client, "1", "40000")
 
     resp = await client.get("/net-worth/summary")
@@ -77,14 +71,11 @@ async def test_holding_shows_up_in_net_worth_breakdown(client: AsyncClient, monk
     assert money(breakdown["crypto"]["amount"]) == money("50000")
 
 
-async def test_second_buy_blends_into_weighted_average_cost(client: AsyncClient, monkeypatch):
-    monkeypatch.setattr(crypto_service, "_fetch_market_data", _fake_fetch({"bitcoin": _point("50000")}))
+async def test_second_buy_blends_into_weighted_average_cost(client: AsyncClient, fake_coingecko):
+    fake_coingecko.serve_markets({"bitcoin": _point("50000")})
     holding = await _add_bitcoin(client, "1", "40000")  # cost basis: 40000
 
-    async def fail_if_called(coingecko_ids, vs_currency):
-        raise AssertionError("adding a transaction must not call CoinGecko")
-
-    monkeypatch.setattr(crypto_service, "_fetch_market_data", fail_if_called)
+    fake_coingecko.forbid("adding a transaction must not call CoinGecko")
 
     resp = await client.post(
         f"/crypto/holdings/{holding['asset_id']}/transactions",
@@ -99,8 +90,8 @@ async def test_second_buy_blends_into_weighted_average_cost(client: AsyncClient,
     assert money(body["value"]) == money("100000")  # 2 * 50000 (last known price, unchanged)
 
 
-async def test_sell_reduces_quantity_but_not_the_average_cost_of_what_remains(client: AsyncClient, monkeypatch):
-    monkeypatch.setattr(crypto_service, "_fetch_market_data", _fake_fetch({"bitcoin": _point("50000")}))
+async def test_sell_reduces_quantity_but_not_the_average_cost_of_what_remains(client: AsyncClient, fake_coingecko):
+    fake_coingecko.serve_markets({"bitcoin": _point("50000")})
     holding = await _add_bitcoin(client, "2", "40000")  # avg cost 40000
 
     resp = await client.post(
@@ -115,8 +106,8 @@ async def test_sell_reduces_quantity_but_not_the_average_cost_of_what_remains(cl
     assert money(body["value"]) == money("50000")  # 1 * 50000
 
 
-async def test_selling_more_than_held_is_rejected(client: AsyncClient, monkeypatch):
-    monkeypatch.setattr(crypto_service, "_fetch_market_data", _fake_fetch({"bitcoin": _point("50000")}))
+async def test_selling_more_than_held_is_rejected(client: AsyncClient, fake_coingecko):
+    fake_coingecko.serve_markets({"bitcoin": _point("50000")})
     holding = await _add_bitcoin(client, "1", "40000")
 
     resp = await client.post(
@@ -127,8 +118,8 @@ async def test_selling_more_than_held_is_rejected(client: AsyncClient, monkeypat
     assert resp.status_code == 400
 
 
-async def test_deleting_a_transaction_recomputes_the_position(client: AsyncClient, monkeypatch):
-    monkeypatch.setattr(crypto_service, "_fetch_market_data", _fake_fetch({"bitcoin": _point("50000")}))
+async def test_deleting_a_transaction_recomputes_the_position(client: AsyncClient, fake_coingecko):
+    fake_coingecko.serve_markets({"bitcoin": _point("50000")})
     holding = await _add_bitcoin(client, "1", "40000")
 
     second = await client.post(
@@ -150,8 +141,8 @@ async def test_deleting_a_transaction_recomputes_the_position(client: AsyncClien
     assert money(refreshed["avg_buy_price"]) == money("40000")
 
 
-async def test_transaction_history_lists_newest_first(client: AsyncClient, monkeypatch):
-    monkeypatch.setattr(crypto_service, "_fetch_market_data", _fake_fetch({"bitcoin": _point("50000")}))
+async def test_transaction_history_lists_newest_first(client: AsyncClient, fake_coingecko):
+    fake_coingecko.serve_markets({"bitcoin": _point("50000")})
     holding = await _add_bitcoin(client, "1", "40000", )
     await client.post(
         f"/crypto/holdings/{holding['asset_id']}/transactions",
@@ -165,8 +156,8 @@ async def test_transaction_history_lists_newest_first(client: AsyncClient, monke
     assert dates == ["2026-02-01", "2026-01-01"]
 
 
-async def test_deleting_the_asset_removes_the_crypto_holding_too(client: AsyncClient, monkeypatch):
-    monkeypatch.setattr(crypto_service, "_fetch_market_data", _fake_fetch({"bitcoin": _point("50000")}))
+async def test_deleting_the_asset_removes_the_crypto_holding_too(client: AsyncClient, fake_coingecko):
+    fake_coingecko.serve_markets({"bitcoin": _point("50000")})
     holding = await _add_bitcoin(client)
 
     resp = await client.delete(f"/assets/{holding['asset_id']}")
@@ -176,17 +167,13 @@ async def test_deleting_the_asset_removes_the_crypto_holding_too(client: AsyncCl
     assert resp.json()["holdings"] == []
 
 
-async def test_get_holdings_does_not_resync_within_24_hours(client: AsyncClient, monkeypatch):
-    monkeypatch.setattr(crypto_service, "_fetch_market_data", _fake_fetch({"bitcoin": _point("50000")}))
+async def test_get_holdings_does_not_resync_within_24_hours(client: AsyncClient, fake_coingecko):
+    fake_coingecko.serve_markets({"bitcoin": _point("50000")})
     await _add_bitcoin(client)
 
-    calls: list[list[str]] = []
-
-    async def counting_fetch(coingecko_ids, vs_currency):
-        calls.append(coingecko_ids)
-        return {}
-
-    monkeypatch.setattr(crypto_service, "_fetch_market_data", counting_fetch)
+    # Each /coins/markets call's ids land in `calls`; the feed is empty.
+    calls: list[list[str]] = fake_coingecko.record_market_calls()
+    fake_coingecko.serve_markets({})
 
     resp = await client.get("/crypto/holdings")
 
@@ -194,17 +181,12 @@ async def test_get_holdings_does_not_resync_within_24_hours(client: AsyncClient,
     assert calls == []  # creation's own sync already satisfied the 24h window
 
 
-async def test_manual_refresh_button_bypasses_the_24h_window_and_updates_changes(client: AsyncClient, monkeypatch):
-    monkeypatch.setattr(crypto_service, "_fetch_market_data", _fake_fetch({"bitcoin": _point("50000")}))
+async def test_manual_refresh_button_bypasses_the_24h_window_and_updates_changes(client: AsyncClient, fake_coingecko):
+    fake_coingecko.serve_markets({"bitcoin": _point("50000")})
     await _add_bitcoin(client, "0.5", "40000")
 
-    calls: list[list[str]] = []
-
-    async def counting_fetch(coingecko_ids, vs_currency):
-        calls.append(coingecko_ids)
-        return {"bitcoin": _point("60000", change_1h="0.5", change_24h="2.1", change_7d="-3.4")}
-
-    monkeypatch.setattr(crypto_service, "_fetch_market_data", counting_fetch)
+    calls: list[list[str]] = fake_coingecko.record_market_calls()
+    fake_coingecko.serve_markets({"bitcoin": _point("60000", change_1h="0.5", change_24h="2.1", change_7d="-3.4")})
 
     resp = await client.post("/crypto/refresh")
 
@@ -217,14 +199,12 @@ async def test_manual_refresh_button_bypasses_the_24h_window_and_updates_changes
     assert money(holding["price_change_7d"]) == money("-3.4")
 
 
-async def test_coingecko_outage_keeps_last_known_value_instead_of_failing(client: AsyncClient, monkeypatch):
-    monkeypatch.setattr(crypto_service, "_fetch_market_data", _fake_fetch({"bitcoin": _point("50000")}))
+async def test_coingecko_outage_keeps_last_known_value_instead_of_failing(client: AsyncClient, fake_coingecko):
+    fake_coingecko.serve_markets({"bitcoin": _point("50000")})
     await _add_bitcoin(client, "0.5", "40000")
 
-    async def broken_fetch(coingecko_ids, vs_currency):
-        raise httpx.ConnectError("simulated outage")
-
-    monkeypatch.setattr(crypto_service, "_fetch_market_data", broken_fetch)
+    # Simulated outage: CoinGecko answers 503 to everything.
+    fake_coingecko.fail(503)
 
     resp = await client.post("/crypto/refresh")
 
@@ -235,8 +215,8 @@ async def test_coingecko_outage_keeps_last_known_value_instead_of_failing(client
     assert money(body["holdings"][0]["value"]) == money("25000")  # unchanged from creation
 
 
-async def test_create_rejects_when_no_api_key_configured(client: AsyncClient, monkeypatch):
-    monkeypatch.setattr(crypto_service.get_settings(), "coingecko_api_key", "")
+@pytest.mark.server_env(AURUM_COINGECKO_API_KEY="")
+async def test_create_rejects_when_no_api_key_configured(client: AsyncClient):
 
     resp = await client.post(
         "/crypto/holdings",
@@ -253,13 +233,13 @@ async def test_create_rejects_when_no_api_key_configured(client: AsyncClient, mo
     assert resp.status_code == 400
 
 
-async def test_backup_roundtrip_preserves_holding_and_transaction_log(client: AsyncClient, monkeypatch):
+async def test_backup_roundtrip_preserves_holding_and_transaction_log(client: AsyncClient, fake_coingecko):
     """A crypto holding is an Asset underneath, so it would still show up
     after a restore even without this — but as an inert manual asset,
     having silently lost which coin it was and its whole buy/sell history
     (so quantity and avg buy price couldn't be recomputed). Backup must
     carry both CryptoHolding and CryptoTransaction rows."""
-    monkeypatch.setattr(crypto_service, "_fetch_market_data", _fake_fetch({"bitcoin": _point("50000")}))
+    fake_coingecko.serve_markets({"bitcoin": _point("50000")})
     holding = await _add_bitcoin(client, "1", "40000")
     await client.post(
         f"/crypto/holdings/{holding['asset_id']}/transactions",
@@ -281,8 +261,8 @@ async def test_backup_roundtrip_preserves_holding_and_transaction_log(client: As
     assert money(restored["value"]) == money("100000")  # last_price survived too (2 * 50000)
 
 
-async def test_backup_roundtrip_preserves_portfolio_assignment(client: AsyncClient, monkeypatch):
-    monkeypatch.setattr(crypto_service, "_fetch_market_data", _fake_fetch({"bitcoin": _point("50000")}))
+async def test_backup_roundtrip_preserves_portfolio_assignment(client: AsyncClient, fake_coingecko):
+    fake_coingecko.serve_markets({"bitcoin": _point("50000")})
     portfolio = (await client.post("/crypto/portfolios", json={"name": "Long-term"})).json()
     resp = await client.post(
         "/crypto/holdings",
@@ -312,12 +292,12 @@ async def test_backup_roundtrip_preserves_portfolio_assignment(client: AsyncClie
     assert restored_holding["portfolio_id"] == restored_portfolios[0]["id"]
 
 
-async def test_restoring_a_pre_portfolios_backup_falls_back_to_a_default_portfolio(client: AsyncClient, monkeypatch):
+async def test_restoring_a_pre_portfolios_backup_falls_back_to_a_default_portfolio(client: AsyncClient, fake_coingecko):
     """A backup exported before crypto portfolios existed has no
     crypto_portfolios list and every holding's portfolio_id is absent —
     restore_backup() must still produce a valid NOT NULL portfolio_id
     instead of failing the import."""
-    monkeypatch.setattr(crypto_service, "_fetch_market_data", _fake_fetch({"bitcoin": _point("50000")}))
+    fake_coingecko.serve_markets({"bitcoin": _point("50000")})
     holding = await _add_bitcoin(client, "1", "40000")
 
     payload = (await client.get("/backup/export")).json()
@@ -334,8 +314,8 @@ async def test_restoring_a_pre_portfolios_backup_falls_back_to_a_default_portfol
     assert restored_holding["portfolio_id"] == restored_portfolios[0]["id"]
 
 
-async def test_history_reflects_current_total_crypto_value(client: AsyncClient, monkeypatch):
-    monkeypatch.setattr(crypto_service, "_fetch_market_data", _fake_fetch({"bitcoin": _point("50000")}))
+async def test_history_reflects_current_total_crypto_value(client: AsyncClient, fake_coingecko):
+    fake_coingecko.serve_markets({"bitcoin": _point("50000")})
     await _add_bitcoin(client, "1", "40000")
 
     resp = await client.get("/crypto/history?range=30d")
@@ -363,15 +343,12 @@ async def test_history_rejects_unknown_range(client: AsyncClient):
     assert resp.status_code == 422
 
 
-async def test_update_transaction_recomputes_position_without_calling_coingecko(client: AsyncClient, monkeypatch):
-    monkeypatch.setattr(crypto_service, "_fetch_market_data", _fake_fetch({"bitcoin": _point("50000")}))
+async def test_update_transaction_recomputes_position_without_calling_coingecko(client: AsyncClient, fake_coingecko):
+    fake_coingecko.serve_markets({"bitcoin": _point("50000")})
     holding = await _add_bitcoin(client, "1", "40000")
     tx_id = (await client.get(f"/crypto/holdings/{holding['asset_id']}/transactions")).json()[0]["id"]
 
-    async def fail_if_called(coingecko_ids, vs_currency):
-        raise AssertionError("editing a transaction must not call CoinGecko")
-
-    monkeypatch.setattr(crypto_service, "_fetch_market_data", fail_if_called)
+    fake_coingecko.forbid("editing a transaction must not call CoinGecko")
 
     resp = await client.patch(f"/crypto/transactions/{tx_id}", json={"quantity": "2"})
 
@@ -381,8 +358,8 @@ async def test_update_transaction_recomputes_position_without_calling_coingecko(
     assert money(body["value"]) == money("100000")  # 2 * 50000 (last known price)
 
 
-async def test_update_transaction_edits_are_reflected_in_history(client: AsyncClient, monkeypatch):
-    monkeypatch.setattr(crypto_service, "_fetch_market_data", _fake_fetch({"bitcoin": _point("50000")}))
+async def test_update_transaction_edits_are_reflected_in_history(client: AsyncClient, fake_coingecko):
+    fake_coingecko.serve_markets({"bitcoin": _point("50000")})
     holding = await _add_bitcoin(client, "1", "40000")
     tx_id = (await client.get(f"/crypto/holdings/{holding['asset_id']}/transactions")).json()[0]["id"]
 
@@ -397,8 +374,8 @@ async def test_update_transaction_edits_are_reflected_in_history(client: AsyncCl
     assert transactions[0]["note"] == "typo fix"
 
 
-async def test_update_transaction_rejects_editing_a_sell_to_exceed_holdings(client: AsyncClient, monkeypatch):
-    monkeypatch.setattr(crypto_service, "_fetch_market_data", _fake_fetch({"bitcoin": _point("50000")}))
+async def test_update_transaction_rejects_editing_a_sell_to_exceed_holdings(client: AsyncClient, fake_coingecko):
+    fake_coingecko.serve_markets({"bitcoin": _point("50000")})
     holding = await _add_bitcoin(client, "2", "40000")
     await client.post(
         f"/crypto/holdings/{holding['asset_id']}/transactions",
@@ -415,13 +392,13 @@ async def test_update_transaction_rejects_editing_a_sell_to_exceed_holdings(clie
     assert resp.status_code == 400
 
 
-async def test_refresh_updates_30d_and_1y_change(client: AsyncClient, monkeypatch):
-    monkeypatch.setattr(crypto_service, "_fetch_market_data", _fake_fetch({"bitcoin": _point("50000")}))
+async def test_refresh_updates_30d_and_1y_change(client: AsyncClient, fake_coingecko):
+    fake_coingecko.serve_markets({"bitcoin": _point("50000")})
     await _add_bitcoin(client, "0.5", "40000")
 
-    async def counting_fetch(coingecko_ids, vs_currency):
-        return {
-            "bitcoin": crypto_service._MarketPoint(
+    fake_coingecko.serve_markets(
+        {
+            "bitcoin": MarketPoint(
                 price=Decimal("60000"),
                 change_1h=None,
                 change_24h=None,
@@ -430,8 +407,7 @@ async def test_refresh_updates_30d_and_1y_change(client: AsyncClient, monkeypatc
                 change_1y=Decimal("120.25"),
             )
         }
-
-    monkeypatch.setattr(crypto_service, "_fetch_market_data", counting_fetch)
+    )
 
     resp = await client.post("/crypto/refresh")
 
@@ -440,24 +416,22 @@ async def test_refresh_updates_30d_and_1y_change(client: AsyncClient, monkeypatc
     assert money(holding["price_change_1y"]) == money("120.25")
 
 
-async def test_90d_performance_reflects_a_real_market_chart_fetch(client: AsyncClient, monkeypatch):
+async def test_90d_performance_reflects_a_real_market_chart_fetch(client: AsyncClient, fake_coingecko):
     """The 90d Best/Worst Performer window can't ride along with the regular
     sync (CoinGecko's /coins/markets has no 90d bucket) — it's a separate
-    on-demand fetch, monkeypatched here at the same seam _fetch_market_data
-    is patched at elsewhere in this file."""
-    monkeypatch.setattr(crypto_service, "_fetch_market_data", _fake_fetch({"bitcoin": _point("50000")}))
+    on-demand fetch (/coins/{id}/market_chart), served here by the same fake
+    CoinGecko that serves /coins/markets elsewhere in this file."""
+    fake_coingecko.serve_markets({"bitcoin": _point("50000")})
     holding = await _add_bitcoin(client)
 
     # get_90d_performance checks _require_api_key() itself, separately from
-    # _fetch_90d_change below — CI has no AURUM_COINGECKO_API_KEY configured
-    # (unlike a local .env), so this must be stubbed too or the route 400s
-    # before ever reaching the mocked fetch.
-    monkeypatch.setattr(crypto_service.get_settings(), "coingecko_api_key", "test-key")
+    # its per-coin _fetch_90d_change — CI has no AURUM_COINGECKO_API_KEY configured
+    # (unlike a local .env), so the route would 400 before ever reaching the
+    # fetch; the test server is always started with a dummy key for this
+    # (see conftest.py's server_runner).
 
-    async def fake_90d_change(client_, api_key, coingecko_id, vs_currency):
-        return 12.5 if coingecko_id == "bitcoin" else None
-
-    monkeypatch.setattr(crypto_service, "_fetch_90d_change", fake_90d_change)
+    # 12.5% for bitcoin; any other coin 404s, i.e. no 90d change.
+    fake_coingecko.serve_90d_change({"bitcoin": 12.5})
 
     resp = await client.get("/crypto/performance/90d")
 
@@ -465,8 +439,8 @@ async def test_90d_performance_reflects_a_real_market_chart_fetch(client: AsyncC
     assert resp.json()["items"] == [{"asset_id": holding["asset_id"], "price_change_percent": 12.5}]
 
 
-async def test_90d_performance_skips_fully_sold_holdings(client: AsyncClient, monkeypatch):
-    monkeypatch.setattr(crypto_service, "_fetch_market_data", _fake_fetch({"bitcoin": _point("50000")}))
+async def test_90d_performance_skips_fully_sold_holdings(client: AsyncClient, fake_coingecko):
+    fake_coingecko.serve_markets({"bitcoin": _point("50000")})
     holding = await _add_bitcoin(client, "1", "40000")
     resp = await client.post(
         f"/crypto/holdings/{holding['asset_id']}/transactions",
@@ -474,13 +448,8 @@ async def test_90d_performance_skips_fully_sold_holdings(client: AsyncClient, mo
     )
     assert resp.status_code == 201, resp.text
 
-    calls: list[str] = []
-
-    async def fake_90d_change(client_, api_key, coingecko_id, vs_currency):
-        calls.append(coingecko_id)
-        return 5.0
-
-    monkeypatch.setattr(crypto_service, "_fetch_90d_change", fake_90d_change)
+    calls: list[str] = fake_coingecko.record_chart_calls()
+    fake_coingecko.serve_90d_change({"bitcoin": 5.0})
 
     resp = await client.get("/crypto/performance/90d")
 
@@ -488,8 +457,8 @@ async def test_90d_performance_skips_fully_sold_holdings(client: AsyncClient, mo
     assert calls == []  # a coin with zero quantity has nothing to fetch a price for
 
 
-async def test_90d_performance_filters_by_portfolio(client: AsyncClient, monkeypatch):
-    monkeypatch.setattr(crypto_service, "_fetch_market_data", _fake_fetch({"bitcoin": _point("50000")}))
+async def test_90d_performance_filters_by_portfolio(client: AsyncClient, fake_coingecko):
+    fake_coingecko.serve_markets({"bitcoin": _point("50000")})
     portfolio_a = (await client.post("/crypto/portfolios", json={"name": "A"})).json()
     portfolio_b = (await client.post("/crypto/portfolios", json={"name": "B"})).json()
 
@@ -512,12 +481,8 @@ async def test_90d_performance_filters_by_portfolio(client: AsyncClient, monkeyp
     await add(portfolio_a["id"])
     holding_b = await add(portfolio_b["id"])
 
-    monkeypatch.setattr(crypto_service.get_settings(), "coingecko_api_key", "test-key")
-
-    async def fake_90d_change(client_, api_key, coingecko_id, vs_currency):
-        return 3.0
-
-    monkeypatch.setattr(crypto_service, "_fetch_90d_change", fake_90d_change)
+    # API key: the test server always has a dummy one (see conftest.py).
+    fake_coingecko.serve_90d_change({"bitcoin": 3.0})
 
     resp = await client.get(f"/crypto/performance/90d?portfolio_id={portfolio_b['id']}")
 
@@ -526,12 +491,8 @@ async def test_90d_performance_filters_by_portfolio(client: AsyncClient, monkeyp
     assert [item["asset_id"] for item in items] == [holding_b["asset_id"]]
 
 
-async def test_holdings_are_sorted_by_invested_amount_descending(client: AsyncClient, monkeypatch):
-    monkeypatch.setattr(
-        crypto_service,
-        "_fetch_market_data",
-        _fake_fetch({"bitcoin": _point("50000"), "ethereum": _point("2000"), "litecoin": _point("60")}),
-    )
+async def test_holdings_are_sorted_by_invested_amount_descending(client: AsyncClient, fake_coingecko):
+    fake_coingecko.serve_markets({"bitcoin": _point("50000"), "ethereum": _point("2000"), "litecoin": _point("60")})
 
     async def add(coingecko_id, symbol, quantity, price_per_unit):
         resp = await client.post(
@@ -558,10 +519,8 @@ async def test_holdings_are_sorted_by_invested_amount_descending(client: AsyncCl
     assert symbols == ["BTC", "ETH", "LTC"]
 
 
-async def test_fully_sold_holding_sorts_last(client: AsyncClient, monkeypatch):
-    monkeypatch.setattr(
-        crypto_service, "_fetch_market_data", _fake_fetch({"bitcoin": _point("50000"), "litecoin": _point("60")})
-    )
+async def test_fully_sold_holding_sorts_last(client: AsyncClient, fake_coingecko):
+    fake_coingecko.serve_markets({"bitcoin": _point("50000"), "litecoin": _point("60")})
     sold = await _add_bitcoin(client, "1", "40000")
     resp = await client.post(
         f"/crypto/holdings/{sold['asset_id']}/transactions",
@@ -586,8 +545,8 @@ async def test_update_transaction_404_for_unknown_id(client: AsyncClient):
     assert resp.status_code == 404
 
 
-async def test_holding_without_portfolio_id_lands_in_an_auto_created_default(client: AsyncClient, monkeypatch):
-    monkeypatch.setattr(crypto_service, "_fetch_market_data", _fake_fetch({"bitcoin": _point("50000")}))
+async def test_holding_without_portfolio_id_lands_in_an_auto_created_default(client: AsyncClient, fake_coingecko):
+    fake_coingecko.serve_markets({"bitcoin": _point("50000")})
     holding = await _add_bitcoin(client)
 
     portfolios = (await client.get("/crypto/portfolios")).json()
@@ -596,8 +555,8 @@ async def test_holding_without_portfolio_id_lands_in_an_auto_created_default(cli
     assert holding["portfolio_id"] == portfolios[0]["id"]
 
 
-async def test_create_portfolio_and_file_a_holding_under_it(client: AsyncClient, monkeypatch):
-    monkeypatch.setattr(crypto_service, "_fetch_market_data", _fake_fetch({"bitcoin": _point("50000")}))
+async def test_create_portfolio_and_file_a_holding_under_it(client: AsyncClient, fake_coingecko):
+    fake_coingecko.serve_markets({"bitcoin": _point("50000")})
 
     created = await client.post("/crypto/portfolios", json={"name": "Long-term"})
     assert created.status_code == 201, created.text
@@ -621,8 +580,8 @@ async def test_create_portfolio_and_file_a_holding_under_it(client: AsyncClient,
     assert resp.json()["portfolio_id"] == portfolio["id"]
 
 
-async def test_same_coin_can_be_tracked_separately_in_two_portfolios(client: AsyncClient, monkeypatch):
-    monkeypatch.setattr(crypto_service, "_fetch_market_data", _fake_fetch({"bitcoin": _point("50000")}))
+async def test_same_coin_can_be_tracked_separately_in_two_portfolios(client: AsyncClient, fake_coingecko):
+    fake_coingecko.serve_markets({"bitcoin": _point("50000")})
     memes = (await client.post("/crypto/portfolios", json={"name": "Memes"})).json()
     longterm = (await client.post("/crypto/portfolios", json={"name": "Long-term"})).json()
 
@@ -656,8 +615,8 @@ async def test_same_coin_can_be_tracked_separately_in_two_portfolios(client: Asy
     assert money(longterm_history["current"]) == money("100000")  # 2 * 50000, memes' 1 BTC excluded
 
 
-async def test_deleting_a_nonempty_portfolio_is_rejected(client: AsyncClient, monkeypatch):
-    monkeypatch.setattr(crypto_service, "_fetch_market_data", _fake_fetch({"bitcoin": _point("50000")}))
+async def test_deleting_a_nonempty_portfolio_is_rejected(client: AsyncClient, fake_coingecko):
+    fake_coingecko.serve_markets({"bitcoin": _point("50000")})
     holding = await _add_bitcoin(client)
     portfolio_id = holding["portfolio_id"]
 
@@ -688,28 +647,28 @@ async def test_empty_archived_portfolio_can_be_deleted(client: AsyncClient):
     assert (await client.get("/crypto/portfolios")).json() == []
 
 
-async def test_create_holding_defaults_risk_level_to_high(client: AsyncClient, monkeypatch):
-    monkeypatch.setattr(crypto_service, "_fetch_market_data", _fake_fetch({"bitcoin": _point("50000")}))
+async def test_create_holding_defaults_risk_level_to_high(client: AsyncClient, fake_coingecko):
+    fake_coingecko.serve_markets({"bitcoin": _point("50000")})
 
     holding = await _add_bitcoin(client)
 
     assert holding["risk_level"] == "high"
 
 
-async def test_create_holding_accepts_a_custom_risk_level(client: AsyncClient, monkeypatch):
-    monkeypatch.setattr(crypto_service, "_fetch_market_data", _fake_fetch({"bitcoin": _point("50000")}))
+async def test_create_holding_accepts_a_custom_risk_level(client: AsyncClient, fake_coingecko):
+    fake_coingecko.serve_markets({"bitcoin": _point("50000")})
 
     holding = await _add_bitcoin(client, risk_level="low")
 
     assert holding["risk_level"] == "low"
 
 
-async def test_holding_risk_level_is_editable_via_the_underlying_asset(client: AsyncClient, monkeypatch):
+async def test_holding_risk_level_is_editable_via_the_underlying_asset(client: AsyncClient, fake_coingecko):
     """risk_level lives on the Asset, not CryptoHolding — see
     services/crypto_service.py's _to_read — so it's edited through the
     existing PATCH /assets/{asset_id}, same endpoint every other Asset
     already uses, rather than a crypto-specific route."""
-    monkeypatch.setattr(crypto_service, "_fetch_market_data", _fake_fetch({"bitcoin": _point("50000")}))
+    fake_coingecko.serve_markets({"bitcoin": _point("50000")})
     holding = await _add_bitcoin(client, risk_level="high")
 
     resp = await client.patch(f"/assets/{holding['asset_id']}", json={"risk_level": "medium"})
@@ -719,24 +678,24 @@ async def test_holding_risk_level_is_editable_via_the_underlying_asset(client: A
     assert refreshed["risk_level"] == "medium"
 
 
-async def test_create_holding_defaults_network_to_null(client: AsyncClient, monkeypatch):
-    monkeypatch.setattr(crypto_service, "_fetch_market_data", _fake_fetch({"bitcoin": _point("50000")}))
+async def test_create_holding_defaults_network_to_null(client: AsyncClient, fake_coingecko):
+    fake_coingecko.serve_markets({"bitcoin": _point("50000")})
 
     holding = await _add_bitcoin(client)
 
     assert holding["network"] is None
 
 
-async def test_create_holding_accepts_a_network(client: AsyncClient, monkeypatch):
-    monkeypatch.setattr(crypto_service, "_fetch_market_data", _fake_fetch({"bitcoin": _point("50000")}))
+async def test_create_holding_accepts_a_network(client: AsyncClient, fake_coingecko):
+    fake_coingecko.serve_markets({"bitcoin": _point("50000")})
 
     holding = await _add_bitcoin(client, network="Ethereum")
 
     assert holding["network"] == "Ethereum"
 
 
-async def test_update_holding_network(client: AsyncClient, monkeypatch):
-    monkeypatch.setattr(crypto_service, "_fetch_market_data", _fake_fetch({"bitcoin": _point("50000")}))
+async def test_update_holding_network(client: AsyncClient, fake_coingecko):
+    fake_coingecko.serve_markets({"bitcoin": _point("50000")})
     holding = await _add_bitcoin(client)
 
     resp = await client.patch(f"/crypto/holdings/{holding['asset_id']}", json={"network": "Tron"})
@@ -747,8 +706,8 @@ async def test_update_holding_network(client: AsyncClient, monkeypatch):
     assert refreshed["network"] == "Tron"
 
 
-async def test_update_holding_network_can_be_cleared_with_null(client: AsyncClient, monkeypatch):
-    monkeypatch.setattr(crypto_service, "_fetch_market_data", _fake_fetch({"bitcoin": _point("50000")}))
+async def test_update_holding_network_can_be_cleared_with_null(client: AsyncClient, fake_coingecko):
+    fake_coingecko.serve_markets({"bitcoin": _point("50000")})
     holding = await _add_bitcoin(client, network="Ethereum")
 
     resp = await client.patch(f"/crypto/holdings/{holding['asset_id']}", json={"network": None})
@@ -757,11 +716,11 @@ async def test_update_holding_network_can_be_cleared_with_null(client: AsyncClie
     assert resp.json()["network"] is None
 
 
-async def test_update_holding_omitting_network_leaves_it_untouched(client: AsyncClient, monkeypatch):
+async def test_update_holding_omitting_network_leaves_it_untouched(client: AsyncClient, fake_coingecko):
     """Partial PATCH semantics, same as every other endpoint in this app —
     an empty body must not silently null out a field the caller didn't
     mention (see schemas/crypto.py's CryptoHoldingUpdate)."""
-    monkeypatch.setattr(crypto_service, "_fetch_market_data", _fake_fetch({"bitcoin": _point("50000")}))
+    fake_coingecko.serve_markets({"bitcoin": _point("50000")})
     holding = await _add_bitcoin(client, network="Ethereum")
 
     resp = await client.patch(f"/crypto/holdings/{holding['asset_id']}", json={})

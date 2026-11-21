@@ -5,9 +5,8 @@ the instance is only reachable from localhost. That promise only holds if a
 random page open in the same browser can't call the API on their behalf —
 which is what these tests pin down.
 """
+import httpx
 from httpx import AsyncClient
-
-from app.core.config import Settings
 
 EVIL = "https://evil.example"
 
@@ -30,8 +29,21 @@ async def test_credentials_are_not_granted_to_every_origin(client: AsyncClient):
     assert resp.headers.get("access-control-allow-credentials") != "true"
 
 
-def test_shipped_default_allows_no_cross_origin_access():
+def test_shipped_default_allows_no_cross_origin_access(spawn_server):
     """Nothing in the shipped setup needs CORS: compose serves UI and API
     from one origin, and the Vite dev server proxies /api. So the default
-    should be closed, not `*`."""
-    assert Settings.model_fields["cors_origins"].default == ""
+    should be closed, not `*`.
+
+    Checked on the wire: a server started with AURUM_CORS_ORIGINS unset
+    grants no origin anything, neither on a simple request nor on a
+    preflight."""
+    with spawn_server(AURUM_CORS_ORIGINS=None) as base_url:
+        simple = httpx.get(f"{base_url}/accounts", headers={"Origin": EVIL}, trust_env=False)
+        preflight = httpx.options(
+            f"{base_url}/accounts",
+            headers={"Origin": EVIL, "Access-Control-Request-Method": "GET"},
+            trust_env=False,
+        )
+
+    assert "access-control-allow-origin" not in simple.headers
+    assert "access-control-allow-origin" not in preflight.headers

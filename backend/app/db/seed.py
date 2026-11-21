@@ -1,10 +1,17 @@
 """Seeds the default category set on first boot.
 
+Also runnable on its own as `python -m app.db.seed` — the `seed` step of the
+server process contract the black-box test suite relies on (see
+tests/README.md): creates the default categories, starter account and
+app_settings row when they're missing, and is a no-op otherwise.
+
 The expense categories are assigned hues from the dataviz skill's validated
 8-slot categorical palette, in the palette's fixed slot order (never
 reordered/cycled) so the dashboard donut chart is colorblind-safe out of the
 box. See CLAUDE.md-adjacent design notes in UPDATES.md for the source.
 """
+import asyncio
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -94,3 +101,20 @@ async def seed_default_app_settings(session: AsyncSession) -> None:
 
     session.add(AppSettings(id=1, currency=get_settings().default_currency))
     await session.commit()
+
+
+async def seed_all() -> None:
+    """Runs every default seed in the same order main.py's lifespan does."""
+    # Imported here, not at module level: app.db.session builds the engine on
+    # import, which only the standalone entrypoint (and the app) should do.
+    from app.db.session import AsyncSessionLocal, engine
+
+    async with AsyncSessionLocal() as session:
+        await seed_default_categories(session)
+        await seed_default_account(session)
+        await seed_default_app_settings(session)
+    await engine.dispose()
+
+
+if __name__ == "__main__":
+    asyncio.run(seed_all())

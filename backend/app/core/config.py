@@ -44,6 +44,13 @@ class Settings(BaseSettings):
     # machine-readable map of every endpoint and payload shape.
     enable_docs: bool = True
 
+    # Base URLs of the two external data providers. Overridable only so the
+    # black-box test suite (see tests/README.md) can point the running server
+    # at a local fake instead of the real APIs; production never needs to set
+    # these. Defaults are the real public endpoints.
+    nbp_base_url: str = "https://api.nbp.pl/api/exchangerates/rates"
+    coingecko_base_url: str = "https://api.coingecko.com/api/v3"
+
     @property
     def database_url(self) -> str:
         return (

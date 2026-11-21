@@ -18,9 +18,9 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import get_settings
 from app.models.fx import FxRate
 
-NBP_BASE_URL = "https://api.nbp.pl/api/exchangerates/rates"
 NBP_EARLIEST_DATE = date(2002, 1, 2)
 MAX_NBP_RANGE_DAYS = 93
 # Table B is normally published weekly, so its holiday fallback window must
@@ -65,6 +65,9 @@ async def _fetch_nbp_currency(currency: str, requested_dates: set[date]) -> dict
             detail=f"Cannot resolve a historical FX rate for future date {future_dates[0].isoformat()}",
         )
     resolved: dict[date, tuple[date, Decimal]] = {}
+    # Real NBP API by default (see Settings.nbp_base_url); overridable so
+    # tests can point the server at a local fake provider.
+    nbp_base_url = get_settings().nbp_base_url.rstrip("/")
 
     async with httpx.AsyncClient(timeout=12, headers={"Accept": "application/json", "User-Agent": "Aurum/1.2"}) as client:
         for chunk in _date_chunks(requested_dates):
@@ -79,7 +82,7 @@ async def _fetch_nbp_currency(currency: str, requested_dates: set[date]) -> dict
             response: httpx.Response | None = None
             for table in ("a", "b"):
                 url = (
-                    f"{NBP_BASE_URL}/{table}/{currency.lower()}/"
+                    f"{nbp_base_url}/{table}/{currency.lower()}/"
                     f"{provider_start.isoformat()}/{provider_end.isoformat()}/"
                 )
                 try:
