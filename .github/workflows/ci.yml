@@ -130,3 +130,19 @@ jobs:
       # renamed job doesn't silently stop matching branch protection's
       # required status checks.
       - run: npm run test
+
+  # The Rust CLI and its HTTP client. The tests are black-box: they run the
+  # real `aurum` binary against an in-process mock server, so no database or
+  # backend is needed. (The workspace-wide server build/tests live in the
+  # backend-tests-rust job above.)
+  cli-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - run: cargo fmt -p aurum-cli -p aurum-client --check
+      # --no-deps: lint only these two crates, not the shared aurum-domain.
+      - run: cargo clippy -p aurum-cli -p aurum-client --all-targets --no-deps -- -D warnings
+      - run: cargo test -p aurum-cli -p aurum-client
