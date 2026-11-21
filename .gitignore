@@ -52,3 +52,7 @@ pgdata/
 # Other
 UPDATES.md
 temp/
+# Rust (Cargo workspace build output). Migration files are SQL by nature,
+# so they are re-included despite the *.sql rule above.
+/target/
+!crates/aurum-server/migrations/*.sql
