@@ -323,7 +323,7 @@ pub mod err {
             .with_ctx(json!({ "expected": expected }))
     }
     pub fn list_type(loc: Loc, input: Value) -> ErrorItem {
-        ErrorItem::new("list_type", loc, "Input should be a valid array", input)
+        ErrorItem::new("list_type", loc, "Input should be a valid list", input)
     }
     pub fn date_from_datetime_parsing(loc: Loc, input: Value, error: &str) -> ErrorItem {
         ErrorItem::new(
