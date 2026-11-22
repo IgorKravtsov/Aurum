@@ -1,6 +1,6 @@
 [package]
 name = "aurum-cli"
-description = "Aurum command-line client (Rust port of the Node CLI, built on aurum-client)"
+description = "Aurum command-line client (built on aurum-client)"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -21,6 +21,8 @@ serde_json = { workspace = true }
 tokio = { workspace = true }
 
 [dev-dependencies]
+# Route table of the server: the reference for tests/coverage.rs.
+aurum-server = { path = "../aurum-server" }
 axum = { workspace = true }
 tempfile = { workspace = true }
 tokio = { workspace = true, features = ["time"] }
