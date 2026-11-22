@@ -58,7 +58,8 @@ jobs:
 
   # Same black-box suite against the Rust rewrite (crates/aurum-server).
   # Every step after the check is skipped until that crate exists, so this
-  # job stays green on branches that predate it.
+  # job stays green on branches that predate it. Its Rust port runs in the
+  # `rust` job below; this one goes away together with backend/.
   backend-tests-rust:
     runs-on: ubuntu-latest
     services:
@@ -131,37 +132,49 @@ jobs:
       # required status checks.
       - run: npm run test
 
-  # The Rust CLI and its HTTP client. The tests are black-box: they run the
-  # real `aurum` binary against an in-process mock server, so no database or
-  # backend is needed. (The workspace-wide server build/tests live in the
-  # backend-tests-rust job above.)
-  cli-tests:
+  # Every Rust crate in one job: formatting, lints and all tests of the
+  # workspace. Replaces the former per-crate cli-tests / ffi-tests jobs (if
+  # branch protection listed those as required checks, require `rust` now).
+  #
+  # - aurum-server: the black-box API suite (crates/aurum-server/tests, the
+  #   Rust port of backend/tests) builds the app in-process and creates a
+  #   fresh database per test from a migrated+seeded template, so it needs
+  #   the Postgres service below (user must be allowed to CREATE DATABASE).
+  # - aurum-cli / aurum-client: black-box tests run the real `aurum` binary
+  #   against an in-process mock server, so no database or backend is needed.
+  # - aurum-ffi: the mobile FFI layer must build, pass its tests against a
+  #   mock server, and UniFFI must be able to generate the Swift and Kotlin
+  #   bindings from the compiled library. (The iOS/Android cross builds need
+  #   macOS/NDK and run locally via crates/aurum-ffi/scripts.)
+  rust:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: aurum
+          POSTGRES_PASSWORD: aurum
+          POSTGRES_DB: aurum
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U aurum"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      AURUM_POSTGRES_USER: aurum
+      AURUM_POSTGRES_PASSWORD: aurum
+      AURUM_POSTGRES_HOST: 127.0.0.1
+      AURUM_POSTGRES_PORT: 5432
     steps:
       - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy, rustfmt
-      - run: cargo fmt -p aurum-cli -p aurum-client --check
-      # --no-deps: lint only these two crates, not the shared aurum-domain.
-      - run: cargo clippy -p aurum-cli -p aurum-client --all-targets --no-deps -- -D warnings
-      - run: cargo test -p aurum-cli -p aurum-client
-
-  # Mobile FFI layer: the crate must build, pass its tests against a mock
-  # server, and UniFFI must be able to generate the Swift and Kotlin bindings
-  # from the compiled library. (The iOS/Android cross builds need macOS/NDK
-  # and run locally via crates/aurum-ffi/scripts.)
-  ffi-tests:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: clippy, rustfmt
-      - run: cargo fmt -p aurum-ffi --check
-      # --no-deps: lint only aurum-ffi and aurum-client, not the shared aurum-domain.
-      - run: cargo clippy -p aurum-ffi -p aurum-client --all-targets --no-deps -- -D warnings
-      - run: cargo test -p aurum-ffi -p aurum-client
+      - run: cargo fmt --all --check
+      - run: cargo clippy --workspace --all-targets -- -D warnings
+      - run: cargo test --workspace
       - run: crates/aurum-ffi/scripts/gen-bindings.sh
       - name: Check generated bindings
         run: |
