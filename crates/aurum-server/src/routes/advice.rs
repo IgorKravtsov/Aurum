@@ -1,4 +1,4 @@
-//! `/api/advice` — port of `backend/app/api/routes/advice.py`.
+//! `/api/advice` — port of the former Python backend's `app/api/routes/advice.py`.
 //!
 //! Handlers are annotated with `#[utoipa::path(...)]` (full path) and
 //! registered below with `.routes(routes!(...))`; see `routes/tags.rs` and PORTING.md.

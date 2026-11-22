@@ -1,5 +1,5 @@
-//! API contract types for `/api/accounts` — port of `backend/app/schemas/account.py`,
-//! plus the pure balance calculation of `backend/app/services/account_service.py`.
+//! API contract types for `/api/accounts` — port of the former Python backend's `app/schemas/account.py`,
+//! plus the pure balance calculation of the former Python backend's `app/services/account_service.py`.
 //!
 //! Follows `crates/aurum-server/PORTING.md`: response DTOs derive
 //! `Serialize` (field order = pydantic field order, inherited fields first),

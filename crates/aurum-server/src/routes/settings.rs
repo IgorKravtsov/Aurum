@@ -1,4 +1,4 @@
-//! `/api/settings` — port of `backend/app/api/routes/settings.py`.
+//! `/api/settings` — port of the former Python backend's `app/api/routes/settings.py`.
 //!
 //! Second reference implementation: Decimal output, a PATCH body with
 //! `exclude_unset` semantics and a 409 raised from the service.

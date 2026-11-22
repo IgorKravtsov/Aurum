@@ -1,4 +1,4 @@
-//! `/api/crypto` — port of `backend/app/api/routes/crypto.py`.
+//! `/api/crypto` — port of the former Python backend's `app/api/routes/crypto.py`.
 //!
 //! Handlers are annotated with `#[utoipa::path(...)]` (full path, e.g.
 //! `path = "/api/crypto/holdings"`) and registered below with

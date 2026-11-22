@@ -1,5 +1,5 @@
-//! API contract types for `/api/transactions` — port of `backend/app/schemas/transaction.py`,
-//! plus the pure write-time rules of `backend/app/api/routes/transactions.py`.
+//! API contract types for `/api/transactions` — port of the former Python backend's `app/schemas/transaction.py`,
+//! plus the pure write-time rules of the former Python backend's `app/api/routes/transactions.py`.
 //!
 //! Follows `crates/aurum-server/PORTING.md`: response DTOs derive
 //! `Serialize` (field order = pydantic field order, inherited fields first),

@@ -495,7 +495,7 @@ const ru = {
   "cashFlow.net": "Баланс",
   "cashFlow.noData": "Нет данных за выбранный период.",
 
-  // Default seeded categories (backend/app/db/seed.py) — translateCategoryName()
+  // Default seeded categories (crates/aurum-server/src/db/seed.rs) — translateCategoryName()
   // matches on the exact seeded English name and falls through unchanged
   // for anything else (a renamed default, or a custom category added via
   // the category-management UI).

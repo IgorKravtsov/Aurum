@@ -1,5 +1,5 @@
 //! Spend/income per top-level category, split-aware — the pure half of
-//! `backend/app/services/category_rollup.py`, shared by the dashboard's
+//! the former Python backend's `app/services/category_rollup.py`, shared by the dashboard's
 //! breakdown, the reports' category ranking, budgets and insights: every
 //! place that rolls a subcategory's amount up into its parent
 //! (`coalesce(parent_id, id)`) and needs a category's share of a split

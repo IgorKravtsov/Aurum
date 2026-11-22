@@ -1,5 +1,5 @@
-//! API contract types for `/api/budgets` — port of `backend/app/schemas/budget.py`,
-//! plus the pure half of `backend/app/services/budget_service.py`
+//! API contract types for `/api/budgets` — port of the former Python backend's `app/schemas/budget.py`,
+//! plus the pure half of the former Python backend's `app/services/budget_service.py`
 //! ([`budget_status`]: each limit compared against a month's spend).
 //!
 //! Follows `crates/aurum-server/PORTING.md`: response DTOs derive

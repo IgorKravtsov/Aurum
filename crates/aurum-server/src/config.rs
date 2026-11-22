@@ -1,5 +1,5 @@
 //! Application configuration, sourced from environment variables (.env) —
-//! port of `backend/app/core/config.py`.
+//! port of the former Python backend's `app/core/config.py`.
 //!
 //! Resolution matches pydantic-settings (`env_prefix="AURUM_"`,
 //! `env_file=".env"`, `extra="ignore"`): a real environment variable beats

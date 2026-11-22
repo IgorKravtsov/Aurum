@@ -1,5 +1,5 @@
 //! Business logic for `/api/assets` (port of the inline logic of
-//! `backend/app/api/routes/assets.py`).
+//! the former Python backend's `app/api/routes/assets.py`).
 //!
 //! Parity note — Python's session uses `expire_on_commit=False`, so the
 //! Asset object it built or patched from the request keeps its Python-side

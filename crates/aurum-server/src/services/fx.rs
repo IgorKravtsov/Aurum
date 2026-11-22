@@ -1,5 +1,5 @@
 //! Currency conversion behind one batch interface — port of
-//! `backend/app/services/fx_service.py`.
+//! the former Python backend's `app/services/fx_service.py`.
 //!
 //! Callers provide native amounts and dates; this module alone knows how to
 //! normalise ISO codes, resolve NBP business-day fallbacks, persist rates

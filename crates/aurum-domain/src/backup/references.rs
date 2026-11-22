@@ -1,6 +1,6 @@
 //! Pure checks a restore runs before touching a single row — port of
 //! `restore_backup`'s version check and `_validate_references` in
-//! `backend/app/services/backup_service.py`. Each returns the HTTP 400
+//! the former Python backend's `app/services/backup_service.py`. Each returns the HTTP 400
 //! `detail` text verbatim, so clients can also vet a file before upload.
 
 use std::collections::HashSet;

@@ -1,4 +1,4 @@
-//! `/api/transactions` — port of `backend/app/api/routes/transactions.py`.
+//! `/api/transactions` — port of the former Python backend's `app/api/routes/transactions.py`.
 //!
 //! Route-order caveat (see PORTING.md): Starlette tries `/years` and
 //! `/bulk` before `/{transaction_id}`, so e.g. `PATCH /api/transactions/years`

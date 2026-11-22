@@ -1,5 +1,5 @@
-//! API contract types for `/api/net-worth` — port of `backend/app/schemas/net_worth.py`,
-//! plus the pure aggregation of `backend/app/services/net_worth_service.py`.
+//! API contract types for `/api/net-worth` — port of the former Python backend's `app/schemas/net_worth.py`,
+//! plus the pure aggregation of the former Python backend's `app/services/net_worth_service.py`.
 //!
 //! Net worth is a single trend line plus a percent breakdown by asset class.
 //!

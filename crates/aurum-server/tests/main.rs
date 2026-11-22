@@ -1,4 +1,4 @@
-//! The black-box API suite, ported from `backend/tests` (pytest): one module
+//! The black-box API suite, ported from the former Python backend's `tests` (pytest): one module
 //! per pytest module, one `#[tokio::test]` per pytest test with the same
 //! name, the same requests and the same assertions. The harness
 //! (`common/`) builds the app in-process against a fresh database per test;

@@ -1,4 +1,4 @@
-//! Business logic for `/api/recurring` — port of `backend/app/services/recurring_service.py`
+//! Business logic for `/api/recurring` — port of the former Python backend's `app/services/recurring_service.py`
 //! (schedule and write-time rules live in `aurum_domain::recurring`).
 //!
 //! Recurring transaction templates: CRUD, plus "post now" — a one-click

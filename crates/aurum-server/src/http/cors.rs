@@ -1,5 +1,5 @@
 //! A line-for-line port of Starlette's `CORSMiddleware`, configured the way
-//! `backend/app/main.py` configures it.
+//! the former Python backend's `app/main.py` configures it.
 //!
 //! CORS stays off unless someone deliberately opens it, and credentials are
 //! only granted to a pinned list. Starlette answers a credentialed "*" by

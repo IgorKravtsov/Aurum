@@ -1,4 +1,4 @@
-//! `/api/accounts` — port of `backend/app/api/routes/accounts.py`.
+//! `/api/accounts` — port of the former Python backend's `app/api/routes/accounts.py`.
 
 use aurum_domain::accounts::{AccountCreate, AccountListQuery, AccountPath, AccountUpdate, AccountWithBalance};
 use axum::Json;

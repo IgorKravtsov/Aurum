@@ -1,4 +1,4 @@
-//! Business logic for `/api/goals` — port of `backend/app/services/goal_service.py`
+//! Business logic for `/api/goals` — port of the former Python backend's `app/services/goal_service.py`
 //! (the progress maths live in `aurum_domain::goals`).
 //!
 //! Savings goals: CRUD for the goal itself, plus a running current_amount —

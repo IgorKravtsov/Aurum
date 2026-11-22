@@ -1,5 +1,5 @@
-//! API contract types for `/api/crypto` — port of `backend/app/schemas/crypto.py`,
-//! plus the pure parts of `backend/app/services/crypto_service.py`: the
+//! API contract types for `/api/crypto` — port of the former Python backend's `app/schemas/crypto.py`,
+//! plus the pure parts of the former Python backend's `app/services/crypto_service.py`: the
 //! weighted-average-cost position, the derived holding figures, the
 //! "biggest investment first" order, the history series and the parsing of
 //! CoinGecko's JSON (which the server fetches; no IO happens here).

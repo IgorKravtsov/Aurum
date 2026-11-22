@@ -1,5 +1,5 @@
-//! API contract types for `/api/cash-flow` — port of `backend/app/schemas/cash_flow.py`,
-//! plus the pure aggregation of `backend/app/services/cash_flow_service.py`.
+//! API contract types for `/api/cash-flow` — port of the former Python backend's `app/schemas/cash_flow.py`,
+//! plus the pure aggregation of the former Python backend's `app/services/cash_flow_service.py`.
 //!
 //! Month-by-month income vs. expense — the multi-month view neither the
 //! Dashboard (locked to one month) nor Reports (one category at a time, or

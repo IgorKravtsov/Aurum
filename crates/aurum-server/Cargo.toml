@@ -1,6 +1,6 @@
 [package]
 name = "aurum-server"
-description = "Aurum REST API server (Rust port of backend/, same HTTP contract and Postgres schema)"
+description = "Aurum REST API server (ported from the former Python backend, same HTTP contract and Postgres schema)"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -35,7 +35,7 @@ tracing-subscriber = { workspace = true }
 utoipa = { workspace = true }
 utoipa-axum = { workspace = true }
 
-# Black-box API tests ported from backend/tests (pytest): the app runs
+# Black-box API tests ported from the former Python backend tests (pytest): the app runs
 # in-process against a fresh Postgres database per test (they use only the
 # regular [dependencies] above). See tests/README.md.
 [[test]]

@@ -1,5 +1,5 @@
-//! API contract types for `/api/assets` — port of `backend/app/schemas/asset.py`,
-//! plus the pure `_to_read` projection of `backend/app/api/routes/assets.py`.
+//! API contract types for `/api/assets` — port of the former Python backend's `app/schemas/asset.py`,
+//! plus the pure `_to_read` projection of the former Python backend's `app/api/routes/assets.py`.
 //!
 //! An Asset is a manually-tracked net-worth item (investments, crypto,
 //! property, ...). Cash is intentionally NOT an Asset — it's derived live

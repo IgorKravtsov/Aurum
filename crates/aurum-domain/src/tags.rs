@@ -1,4 +1,4 @@
-//! API contract types for `/api/tags` — port of `backend/app/schemas/tag.py`.
+//! API contract types for `/api/tags` — port of the former Python backend's `app/schemas/tag.py`.
 //!
 //! Reference implementation for the porting conventions (see
 //! `crates/aurum-server/PORTING.md`): a read DTO that maps straight from a

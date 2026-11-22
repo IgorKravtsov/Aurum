@@ -1,4 +1,4 @@
-//! SQL for `/api/cash-flow` (port of the queries in `backend/app/services/cash_flow_service.py`).
+//! SQL for `/api/cash-flow` (port of the queries in the former Python backend's `app/services/cash_flow_service.py`).
 
 use aurum_domain::Decimal;
 use aurum_domain::enums::TransactionType;

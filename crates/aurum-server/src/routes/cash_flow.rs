@@ -1,4 +1,4 @@
-//! `/api/cash-flow` — port of `backend/app/api/routes/cash_flow.py`.
+//! `/api/cash-flow` — port of the former Python backend's `app/api/routes/cash_flow.py`.
 
 use aurum_domain::cash_flow::{CashFlowQuery, CashFlowResponse};
 use axum::Json;

@@ -1,4 +1,4 @@
-//! Business logic for `/api/advice` — port of `backend/app/services/advice_service.py`.
+//! Business logic for `/api/advice` — port of the former Python backend's `app/services/advice_service.py`.
 //!
 //! Gathers this month's and the trailing months' expense totals per
 //! category (converted, split-aware — `category_rollup`), the budgeted

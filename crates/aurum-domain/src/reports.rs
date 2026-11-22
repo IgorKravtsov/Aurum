@@ -1,5 +1,5 @@
-//! API contract types for `/api/reports` — port of `backend/app/schemas/reports.py`,
-//! plus the pure half of `backend/app/services/reports_service.py`.
+//! API contract types for `/api/reports` — port of the former Python backend's `app/schemas/reports.py`,
+//! plus the pure half of the former Python backend's `app/services/reports_service.py`.
 //!
 //! Long-range spending reports — the analysis the month-scoped Dashboard
 //! breakdown can't answer on its own: "how much did I spend on X this month,

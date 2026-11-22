@@ -1,4 +1,4 @@
-//! Business logic for `/api/reports` — port of `backend/app/services/reports_service.py`
+//! Business logic for `/api/reports` — port of the former Python backend's `app/services/reports_service.py`
 //! (the report maths live in `aurum_domain::reports`).
 //!
 //! Plain and split transactions share the currency-aware contribution seam

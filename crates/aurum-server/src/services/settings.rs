@@ -1,6 +1,6 @@
 //! Business logic for `/api/settings` — port of
-//! `backend/app/services/settings_service.py` and the inline checks of
-//! `backend/app/api/routes/settings.py`.
+//! the former Python backend's `app/services/settings_service.py` and the inline checks of
+//! the former Python backend's `app/api/routes/settings.py`.
 
 use aurum_domain::settings::{AppSettingsRead, AppSettingsRow, AppSettingsUpdate};
 use aurum_domain::validation::Patch;

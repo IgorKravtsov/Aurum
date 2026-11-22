@@ -1,4 +1,4 @@
-//! Business logic for `/api/net-worth` — port of `backend/app/services/net_worth_service.py`
+//! Business logic for `/api/net-worth` — port of the former Python backend's `app/services/net_worth_service.py`
 //! (the pure aggregation lives in `aurum_domain::net_worth`).
 //!
 //! Public API for other services (insights): [`get_net_worth_summary`].

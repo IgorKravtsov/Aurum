@@ -1,4 +1,4 @@
-//! `/api/goals` — port of `backend/app/api/routes/goals.py`.
+//! `/api/goals` — port of the former Python backend's `app/api/routes/goals.py`.
 
 use aurum_domain::goals::{GoalContributionCreate, GoalCreate, GoalPath, GoalRead, GoalUpdate};
 use axum::Json;

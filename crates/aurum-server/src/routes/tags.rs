@@ -1,4 +1,4 @@
-//! `/api/tags` — port of `backend/app/api/routes/tags.py`.
+//! `/api/tags` — port of the former Python backend's `app/api/routes/tags.py`.
 //!
 //! Reference implementation for the porting agents (see PORTING.md): thin
 //! handlers that validate input with the FastAPI-compatible extractors, call

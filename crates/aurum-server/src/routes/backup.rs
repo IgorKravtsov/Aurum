@@ -1,4 +1,4 @@
-//! `/api/backup` — port of `backend/app/api/routes/backup.py`.
+//! `/api/backup` — port of the former Python backend's `app/api/routes/backup.py`.
 
 use aurum_domain::backup::{BackupPayload, ImportResult};
 use axum::Json;

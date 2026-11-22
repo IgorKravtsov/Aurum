@@ -1,5 +1,5 @@
 //! Business logic for `/api/categories` (inline in
-//! `backend/app/api/routes/categories.py` under Python).
+//! the former Python backend's `app/api/routes/categories.py` under Python).
 
 use aurum_domain::categories::{CategoryCreate, CategoryRead, CategoryUpdate, parent_rule_violation};
 use aurum_domain::enums::CategoryKind;

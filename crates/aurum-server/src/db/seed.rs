@@ -1,5 +1,5 @@
 //! Seeds the default category set on first boot — port of
-//! `backend/app/db/seed.py`, insert for insert, so a fresh database gets the
+//! the former Python backend's `app/db/seed.py`, insert for insert, so a fresh database gets the
 //! same ids, names, icons, colors and sort orders as under Python.
 //!
 //! The expense categories are assigned hues from the dataviz skill's validated

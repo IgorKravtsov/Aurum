@@ -1,4 +1,4 @@
-//! `/api/dashboard` — port of `backend/app/api/routes/dashboard.py`.
+//! `/api/dashboard` — port of the former Python backend's `app/api/routes/dashboard.py`.
 
 use aurum_domain::dashboard::{DashboardQuery, DashboardSummary};
 use axum::Json;

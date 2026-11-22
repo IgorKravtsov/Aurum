@@ -1,4 +1,4 @@
-//! Shared enum types (port of `backend/app/models/enums.py`).
+//! Shared enum types (port of the former Python backend's `app/models/enums.py`).
 //!
 //! Two spellings per variant, and mixing them up is the classic porting bug:
 //! * the **API value** (`"expense"`) — what JSON carries, what pydantic

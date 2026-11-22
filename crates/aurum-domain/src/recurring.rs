@@ -1,5 +1,5 @@
-//! API contract types for `/api/recurring` — port of `backend/app/schemas/recurring.py`,
-//! plus the pure half of `backend/app/services/recurring_service.py`: the
+//! API contract types for `/api/recurring` — port of the former Python backend's `app/schemas/recurring.py`,
+//! plus the pure half of the former Python backend's `app/services/recurring_service.py`: the
 //! schedule ([`advance`], [`next_due_date`]), the write-time rules
 //! ([`category_kind_violation`], [`normalise_destination_amount`]) and the
 //! read model ([`recurring_read`]).

@@ -1,4 +1,4 @@
-//! Shared text-formatting helpers — port of `backend/app/core/text.py`,
+//! Shared text-formatting helpers — port of the former Python backend's `app/core/text.py`,
 //! plus the bits of Python's `str` semantics ports keep needing.
 
 /// Python's `str.isspace()` for one char. Rust's `char::is_whitespace`

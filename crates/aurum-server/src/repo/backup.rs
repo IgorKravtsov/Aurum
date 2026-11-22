@@ -1,6 +1,6 @@
 //! SQL for `/api/backup`: a read of every table for the export and the
 //! wholesale replace for the restore (port of the SQLAlchemy work in
-//! `backend/app/services/backup_service.py`).
+//! the former Python backend's `app/services/backup_service.py`).
 //!
 //! Deliberately self-contained (its own SQL over the tables rather than other
 //! groups' repos): the backup file format is frozen, the other groups' code

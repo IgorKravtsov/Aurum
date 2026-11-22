@@ -1,4 +1,4 @@
-//! Business logic for `/api/insights` — port of `backend/app/services/insights_service.py`.
+//! Business logic for `/api/insights` — port of the former Python backend's `app/services/insights_service.py`.
 //!
 //! Gathers the inputs (dashboard months, the 5-year net worth summary, this
 //! month's budget status, idle depository balances) and hands them to the

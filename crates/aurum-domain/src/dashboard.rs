@@ -1,5 +1,5 @@
-//! API contract types for `/api/dashboard` — port of `backend/app/schemas/dashboard.py`,
-//! plus the pure aggregation of `backend/app/services/dashboard_service.py`
+//! API contract types for `/api/dashboard` — port of the former Python backend's `app/schemas/dashboard.py`,
+//! plus the pure aggregation of the former Python backend's `app/services/dashboard_service.py`
 //! (the Overview page's four stat cards and the spending-by-category donut).
 //!
 //! Follows `crates/aurum-server/PORTING.md`: response DTOs derive

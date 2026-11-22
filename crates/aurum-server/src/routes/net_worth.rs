@@ -1,4 +1,4 @@
-//! `/api/net-worth` — port of `backend/app/api/routes/net_worth.py`.
+//! `/api/net-worth` — port of the former Python backend's `app/api/routes/net_worth.py`.
 
 use aurum_domain::net_worth::{NetWorthQuery, NetWorthSummary};
 use axum::Json;

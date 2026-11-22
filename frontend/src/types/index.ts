@@ -478,7 +478,7 @@ export interface CryptoHolding {
 
 export interface CryptoHoldingCreateInput {
   // Omit to file the coin under the default portfolio (auto-created if
-  // none exists yet — see services/crypto_service.py's
+  // none exists yet — see the former Python backend's services/crypto_service.py's
   // get_or_create_default_portfolio).
   portfolio_id?: number | null;
   coingecko_id: string;
@@ -534,7 +534,7 @@ export interface CryptoSearchResult {
 }
 
 // Real 90-day % price change per coin, fetched on demand only while the
-// 90d range is selected — see services/crypto_service.py's
+// 90d range is selected — see the former Python backend's services/crypto_service.py's
 // get_90d_performance for why this can't ride along with the regular sync.
 export interface CryptoPerformancePoint {
   asset_id: number;
@@ -546,7 +546,7 @@ export interface CryptoPerformanceResponse {
 }
 
 // No "24h" — the price history is only as dense as the sync cadence (see
-// services/crypto_service.py's AUTO_REFRESH_INTERVAL), so a 24h chart would
+// the former Python backend's services/crypto_service.py's AUTO_REFRESH_INTERVAL), so a 24h chart would
 // be one or two points, not a smooth intraday line.
 export type CryptoRange = "7d" | "30d" | "90d" | "all";
 

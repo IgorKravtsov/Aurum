@@ -1,5 +1,5 @@
 //! Audit trail for the handful of operations that destroy or wholesale
-//! replace data — port of `backend/app/core/audit.py`.
+//! replace data — port of the former Python backend's `app/core/audit.py`.
 //!
 //! Aurum is single-user, so this isn't about "who did it" — there's only one
 //! person. It's about *what happened and when*, after the fact: restoring a

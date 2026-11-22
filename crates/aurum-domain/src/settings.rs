@@ -1,4 +1,4 @@
-//! API contract types for `/api/settings` — port of `backend/app/schemas/settings.py`.
+//! API contract types for `/api/settings` — port of the former Python backend's `app/schemas/settings.py`.
 //!
 //! Second reference implementation: Decimal fields, numeric bounds and a
 //! PATCH model with `exclude_unset` semantics ([`Patch`]).

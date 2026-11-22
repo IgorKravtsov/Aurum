@@ -1,4 +1,4 @@
-//! Business logic for `/api/tags` (inline in `backend/app/api/routes/tags.py`
+//! Business logic for `/api/tags` (inline in the former Python backend's `app/api/routes/tags.py`
 //! under Python). Reference implementation — see PORTING.md.
 
 use aurum_domain::tags::{TagCreate, TagRead};

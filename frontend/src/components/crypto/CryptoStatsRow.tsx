@@ -13,7 +13,7 @@ interface CryptoStatsRowProps {
   // switching one switches both (see CryptoPage).
   range: CryptoRange;
   // Real per-coin 90d % change, fetched on demand only while range==="90d"
-  // (see services/crypto_service.py's get_90d_performance) — undefined
+  // (see the former Python backend's services/crypto_service.py's get_90d_performance) — undefined
   // while that fetch is still in flight.
   performance90d?: Map<number, number | null>;
   isPerformance90dLoading: boolean;

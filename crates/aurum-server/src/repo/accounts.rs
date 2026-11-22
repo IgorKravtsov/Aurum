@@ -1,4 +1,4 @@
-//! SQL for `/api/accounts` (port of the queries in `backend/app/services/account_service.py`).
+//! SQL for `/api/accounts` (port of the queries in the former Python backend's `app/services/account_service.py`).
 
 use aurum_domain::accounts::{AccountCreate, AccountRead, AccountUpdate, BalanceMovement};
 use aurum_domain::validation::Patch;

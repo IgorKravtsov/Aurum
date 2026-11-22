@@ -1,4 +1,4 @@
-//! Business logic for `/api/accounts` — port of `backend/app/services/account_service.py`.
+//! Business logic for `/api/accounts` — port of the former Python backend's `app/services/account_service.py`.
 //!
 //! Account CRUD, plus each account's live balance — summed from its
 //! transaction rows (see `aurum_domain::accounts::account_balances`) rather

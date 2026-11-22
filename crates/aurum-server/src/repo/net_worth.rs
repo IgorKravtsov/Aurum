@@ -1,4 +1,4 @@
-//! SQL for `/api/net-worth` (port of the queries in `backend/app/services/net_worth_service.py`).
+//! SQL for `/api/net-worth` (port of the queries in the former Python backend's `app/services/net_worth_service.py`).
 //!
 //! No `ORDER BY` where Python had none: the row order decides the order
 //! Python summed converted amounts in (see `aurum_domain::net_worth`), so

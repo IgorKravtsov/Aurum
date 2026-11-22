@@ -1,4 +1,4 @@
-//! SQL for the category rollup (port of the queries in `backend/app/services/category_rollup.py`).
+//! SQL for the category rollup (port of the queries in the former Python backend's `app/services/category_rollup.py`).
 
 use aurum_domain::Decimal;
 use aurum_domain::enums::TransactionType;

@@ -1,6 +1,6 @@
 //! Local stand-ins for the two external APIs the server calls — the NBP
 //! exchange-rate API (`services/fx.rs`) and CoinGecko (`services/crypto.rs`).
-//! Port of `backend/tests/fake_providers.py`.
+//! Port of the former Python backend's `tests/fake_providers.py`.
 //!
 //! The app under test is pointed at this fake through
 //! `Settings::nbp_base_url` / `Settings::coingecko_base_url`, and tests

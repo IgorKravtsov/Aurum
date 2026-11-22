@@ -1,4 +1,4 @@
-//! SQL for the `fx_rates` cache (port of the queries in `backend/app/services/fx_service.py`).
+//! SQL for the `fx_rates` cache (port of the queries in the former Python backend's `app/services/fx_service.py`).
 
 use aurum_domain::Decimal;
 use aurum_domain::fx::FxRateRow;

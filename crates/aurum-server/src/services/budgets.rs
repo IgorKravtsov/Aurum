@@ -1,4 +1,4 @@
-//! Business logic for `/api/budgets` — port of `backend/app/services/budget_service.py`
+//! Business logic for `/api/budgets` — port of the former Python backend's `app/services/budget_service.py`
 //! (the pure comparison lives in `aurum_domain::budgets`).
 //!
 //! Monthly category budgets: CRUD for the limits themselves, plus

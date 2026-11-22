@@ -1,5 +1,5 @@
 //! Business logic for `/api/transactions` (inline in
-//! `backend/app/api/routes/transactions.py` under Python).
+//! the former Python backend's `app/api/routes/transactions.py` under Python).
 //!
 //! Response fidelity note: Python's session uses `expire_on_commit=False`
 //! and never refreshes after create/update, so the `TransactionRead` it

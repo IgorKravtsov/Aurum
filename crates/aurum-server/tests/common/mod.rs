@@ -1,4 +1,4 @@
-//! Test harness wiring — port of `backend/tests/conftest.py`,
+//! Test harness wiring — port of the former Python backend's `tests/conftest.py`,
 //! `server.py` and `helpers.py`.
 //!
 //! Every test calls [`TestApp::start`] (or [`TestApp::start_with`] for a

@@ -1,4 +1,4 @@
-//! Business logic for `/api/dashboard` — port of `backend/app/services/dashboard_service.py`
+//! Business logic for `/api/dashboard` — port of the former Python backend's `app/services/dashboard_service.py`
 //! (aggregation logic behind the Overview dashboard; the pure part lives in
 //! `aurum_domain::dashboard`).
 //!

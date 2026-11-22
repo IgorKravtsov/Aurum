@@ -21,7 +21,7 @@ interface CryptoTransactionModalProps {
 /** Buy more of, or sell some of, a coin already being tracked — the "+"
  * action on the holdings table — or edit/view an existing entry from its
  * trade history. Never calls CoinGecko either way (see
- * services/crypto_service.py's add_transaction/update_transaction): value
+ * the former Python backend's services/crypto_service.py's add_transaction/update_transaction): value
  * is recomputed from the last cached price. */
 export function CryptoTransactionModal({ open, onClose, holding, transaction = null }: CryptoTransactionModalProps) {
   const { t } = useTranslation();

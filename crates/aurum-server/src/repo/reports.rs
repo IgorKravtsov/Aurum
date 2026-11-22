@@ -1,4 +1,4 @@
-//! SQL for `/api/reports` (port of the queries in `backend/app/services/reports_service.py`;
+//! SQL for `/api/reports` (port of the queries in the former Python backend's `app/services/reports_service.py`;
 //! the contribution queries themselves live in `repo::category_rollup`).
 
 use sqlx::PgExecutor;

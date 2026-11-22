@@ -1,4 +1,4 @@
-//! `/api/reports` — port of `backend/app/api/routes/reports.py`.
+//! `/api/reports` — port of the former Python backend's `app/api/routes/reports.py`.
 
 use aurum_domain::reports::{
     CategoryRankingQuery, CategoryRankingReport, CategorySpendingQuery, CategorySpendingReport,

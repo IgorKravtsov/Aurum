@@ -1,4 +1,4 @@
-//! Business logic for `/api/crypto` — port of `backend/app/services/crypto_service.py`.
+//! Business logic for `/api/crypto` — port of the former Python backend's `app/services/crypto_service.py`.
 //!
 //! Crypto price sync + position accounting on top of the existing
 //! Asset/AssetValuation engine: a holding's value is an ordinary

@@ -1,4 +1,4 @@
-//! SQL for `/api/crypto` (port of the queries in `backend/app/services/crypto_service.py`).
+//! SQL for `/api/crypto` (port of the queries in the former Python backend's `app/services/crypto_service.py`).
 //!
 //! Every query mirrors the SQLAlchemy statement it replaces (same table,
 //! same `ORDER BY`), so ties resolve the way they did under Python. Write

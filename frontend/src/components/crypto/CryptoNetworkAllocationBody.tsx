@@ -10,7 +10,7 @@ interface CryptoNetworkAllocationBodyProps {
 }
 
 // Same fixed categorical ramp as CryptoAllocationBody's per-coin donut —
-// see net_worth_service.py's _CLASS_META comment for why this exact order.
+// see the former Python backend's net_worth_service.py's _CLASS_META comment for why this exact order.
 const SERIES_COLORS = [
   "var(--series-1)",
   "var(--series-2)",

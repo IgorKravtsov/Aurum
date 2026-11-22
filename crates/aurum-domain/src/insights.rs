@@ -1,5 +1,5 @@
-//! API contract types for `/api/insights` — port of `backend/app/schemas/insights.py`,
-//! plus the pure rules of `backend/app/services/insights_service.py`
+//! API contract types for `/api/insights` — port of the former Python backend's `app/schemas/insights.py`,
+//! plus the pure rules of the former Python backend's `app/services/insights_service.py`
 //! (proactive early-warning checks, computed from data that already exists).
 //!
 //! Five signals: sustained negative monthly cash flow, a sustained net-worth

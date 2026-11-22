@@ -1,5 +1,5 @@
 //! Spend/income per top-level category, split-aware — port of
-//! `backend/app/services/category_rollup.py` (the pure rollup lives in
+//! the former Python backend's `app/services/category_rollup.py` (the pure rollup lives in
 //! `aurum_domain::category_rollup`).
 //!
 //! Public API for other services (dashboard, reports, budgets, insights):

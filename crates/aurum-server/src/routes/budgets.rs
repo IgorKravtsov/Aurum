@@ -1,4 +1,4 @@
-//! `/api/budgets` — port of `backend/app/api/routes/budgets.py`.
+//! `/api/budgets` — port of the former Python backend's `app/api/routes/budgets.py`.
 //!
 //! Route-order caveat (see PORTING.md): Starlette tries `/status` before
 //! `/{budget_id}`, so e.g. `PATCH /api/budgets/status` is a 422 (int

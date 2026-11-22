@@ -1,4 +1,4 @@
-//! Business logic for `/api/backup` — port of `backend/app/services/backup_service.py`.
+//! Business logic for `/api/backup` — port of the former Python backend's `app/services/backup_service.py`.
 //!
 //! Full-database JSON backup & restore. The export is every row of every
 //! table as one portable JSON document a user can download from the browser

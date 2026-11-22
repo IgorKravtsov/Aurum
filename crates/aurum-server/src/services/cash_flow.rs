@@ -1,4 +1,4 @@
-//! Business logic for `/api/cash-flow` — port of `backend/app/services/cash_flow_service.py`
+//! Business logic for `/api/cash-flow` — port of the former Python backend's `app/services/cash_flow_service.py`
 //! (the pure part lives in `aurum_domain::cash_flow`).
 //!
 //! Month-by-month income vs. expense; transfers between the user's own

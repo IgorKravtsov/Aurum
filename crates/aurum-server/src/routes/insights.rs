@@ -1,4 +1,4 @@
-//! `/api/insights` — port of `backend/app/api/routes/insights.py`.
+//! `/api/insights` — port of the former Python backend's `app/api/routes/insights.py`.
 //!
 //! Handlers are annotated with `#[utoipa::path(...)]` (full path) and
 //! registered below with `.routes(routes!(...))`; see `routes/tags.rs` and PORTING.md.

@@ -1,4 +1,4 @@
-//! `/api/assets` — port of `backend/app/api/routes/assets.py`.
+//! `/api/assets` — port of the former Python backend's `app/api/routes/assets.py`.
 
 use aurum_domain::assets::{AssetCreate, AssetPath, AssetRead, AssetUpdate, AssetValuationCreate, AssetValuationRead};
 use axum::Json;

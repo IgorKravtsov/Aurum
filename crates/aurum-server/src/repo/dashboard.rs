@@ -1,4 +1,4 @@
-//! SQL for `/api/dashboard` (port of the queries in `backend/app/services/dashboard_service.py`).
+//! SQL for `/api/dashboard` (port of the queries in the former Python backend's `app/services/dashboard_service.py`).
 
 use aurum_domain::Decimal;
 use aurum_domain::enums::TransactionType;

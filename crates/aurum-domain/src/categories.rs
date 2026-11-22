@@ -1,5 +1,5 @@
-//! API contract types for `/api/categories` — port of `backend/app/schemas/category.py`,
-//! plus the pure subcategory rules of `backend/app/api/routes/categories.py`.
+//! API contract types for `/api/categories` — port of the former Python backend's `app/schemas/category.py`,
+//! plus the pure subcategory rules of the former Python backend's `app/api/routes/categories.py`.
 //!
 //! Follows `crates/aurum-server/PORTING.md`: response DTOs derive
 //! `Serialize` (field order = pydantic field order, inherited fields first),

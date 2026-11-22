@@ -1,5 +1,5 @@
-//! API contract types for `/api/advice` — port of `backend/app/schemas/advice.py`,
-//! plus the pure rules of `backend/app/services/advice_service.py`.
+//! API contract types for `/api/advice` — port of the former Python backend's `app/schemas/advice.py`,
+//! plus the pure rules of the former Python backend's `app/services/advice_service.py`.
 //!
 //! Personalized, read-only financial advice — a curated set of insights
 //! computed from data that already exists (transactions, budgets, category

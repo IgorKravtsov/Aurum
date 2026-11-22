@@ -1,4 +1,4 @@
-//! SQL for `/api/categories` (port of the queries in `backend/app/api/routes/categories.py`).
+//! SQL for `/api/categories` (port of the queries in the former Python backend's `app/api/routes/categories.py`).
 
 use aurum_domain::categories::{CategoryCreate, CategoryRead, CategoryUpdate};
 use aurum_domain::category_rollup::RollupCategory;

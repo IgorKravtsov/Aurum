@@ -1,4 +1,4 @@
-//! Route groups, one module per `backend/app/api/routes/*.py` file. Each
+//! Route groups, one module per route file (`app/api/routes/*.py`) of the former Python backend. Each
 //! exposes `pub fn router() -> OpenApiRouter<AppState>` and owns its paths;
 //! this file only merges them, so porting a group never touches it.
 

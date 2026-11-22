@@ -1,4 +1,4 @@
-//! SQL for `/api/assets` (port of the queries in `backend/app/api/routes/assets.py`).
+//! SQL for `/api/assets` (port of the queries in the former Python backend's `app/api/routes/assets.py`).
 
 use aurum_domain::Decimal;
 use aurum_domain::assets::{AssetCreate, AssetRow, AssetUpdate, AssetValuationRead};

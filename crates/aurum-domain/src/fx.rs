@@ -1,4 +1,4 @@
-//! Currency conversion — the pure half of `backend/app/services/fx_service.py`.
+//! Currency conversion — the pure half of the former Python backend's `app/services/fx_service.py`.
 //!
 //! Everything here is deterministic and IO-free (so mobile clients can reuse
 //! it): ISO code normalisation, NBP date chunking, picking the publication

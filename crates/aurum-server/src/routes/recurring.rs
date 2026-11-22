@@ -1,4 +1,4 @@
-//! `/api/recurring` — port of `backend/app/api/routes/recurring.py`.
+//! `/api/recurring` — port of the former Python backend's `app/api/routes/recurring.py`.
 
 use aurum_domain::recurring::{
     RecurringPath, RecurringTransactionCreate, RecurringTransactionRead, RecurringTransactionUpdate,

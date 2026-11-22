@@ -1,4 +1,4 @@
-//! `/api/categories` — port of `backend/app/api/routes/categories.py`.
+//! `/api/categories` — port of the former Python backend's `app/api/routes/categories.py`.
 
 use aurum_domain::categories::{CategoryCreate, CategoryListQuery, CategoryPath, CategoryRead, CategoryUpdate};
 use axum::Json;

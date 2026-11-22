@@ -1,5 +1,5 @@
-//! API contract types for `/api/goals` — port of `backend/app/schemas/goal.py`,
-//! plus the pure half of `backend/app/services/goal_service.py`
+//! API contract types for `/api/goals` — port of the former Python backend's `app/schemas/goal.py`,
+//! plus the pure half of the former Python backend's `app/services/goal_service.py`
 //! ([`goal_read`]: progress derived from the contribution total).
 //!
 //! Follows `crates/aurum-server/PORTING.md`: response DTOs derive

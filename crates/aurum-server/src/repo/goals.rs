@@ -1,4 +1,4 @@
-//! SQL for `/api/goals` (port of the queries in `backend/app/services/goal_service.py`).
+//! SQL for `/api/goals` (port of the queries in the former Python backend's `app/services/goal_service.py`).
 
 use aurum_domain::Decimal;
 use aurum_domain::goals::{GoalCreate, GoalUpdate};

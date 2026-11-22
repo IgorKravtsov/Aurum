@@ -1,4 +1,4 @@
-//! SQL for `/api/budgets` (port of the queries in `backend/app/services/budget_service.py`).
+//! SQL for `/api/budgets` (port of the queries in the former Python backend's `app/services/budget_service.py`).
 
 use aurum_domain::Decimal;
 use sqlx::PgExecutor;

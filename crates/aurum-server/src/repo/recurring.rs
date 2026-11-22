@@ -1,4 +1,4 @@
-//! SQL for `/api/recurring` (port of the queries in `backend/app/services/recurring_service.py`).
+//! SQL for `/api/recurring` (port of the queries in the former Python backend's `app/services/recurring_service.py`).
 
 use aurum_domain::Decimal;
 use aurum_domain::enums::{RecurringFrequency, TransactionType};
