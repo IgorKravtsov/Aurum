@@ -8,8 +8,11 @@
 # Stages: chef-plan (dependency recipe) -> builder (cached deps layer, then
 # the real build) -> runtime (slim Debian with just the binary).
 
-ARG RUST_IMAGE=lukemathwalker/cargo-chef:latest-rust-1-bookworm
-ARG RUNTIME_IMAGE=debian:bookworm-slim
+# Base images are pinned to exact tags so a rebuild is reproducible: cargo-chef
+# 0.1.78 on Rust 1.99.1 (workspace MSRV is 1.88) and a dated Debian snapshot.
+# Bump them deliberately, together with a check that the stack still builds.
+ARG RUST_IMAGE=lukemathwalker/cargo-chef:0.1.78-rust-1.99.1-bookworm
+ARG RUNTIME_IMAGE=debian:bookworm-20261104-slim
 
 # ---- 1. recipe: the dependency graph without any of our own code ----------
 FROM ${RUST_IMAGE} AS planner
