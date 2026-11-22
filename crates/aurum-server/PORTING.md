@@ -217,6 +217,9 @@ Don't trust memory for pydantic wording: if an error type you need isn't in
 4. The black-box pytest suite runs unchanged against the Rust server:
    `cd backend && AURUM_TEST_SERVER=rust pytest -v` (see `backend/tests/README.md`;
    the harness drives `aurum-server migrate|seed|serve`).
+5. The same suite, ported to Rust, runs in-process with `cargo test -p aurum-server`
+   (`crates/aurum-server/tests/`, one module per pytest module; see its `README.md`).
+   New behaviour gets its test there.
 
 ## 10. Known gaps (shared layer)
 

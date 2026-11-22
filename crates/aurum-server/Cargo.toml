@@ -5,6 +5,9 @@ version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 publish.workspace = true
+# Every file in tests/ is a module of the single `api` test binary below
+# (one link instead of one per file); see tests/main.rs.
+autotests = false
 
 [[bin]]
 name = "aurum-server"
@@ -31,6 +34,13 @@ tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 utoipa = { workspace = true }
 utoipa-axum = { workspace = true }
+
+# Black-box API tests ported from backend/tests (pytest): the app runs
+# in-process against a fresh Postgres database per test (they use only the
+# regular [dependencies] above). See tests/README.md.
+[[test]]
+name = "api"
+path = "tests/main.rs"
 
 [lints]
 workspace = true
