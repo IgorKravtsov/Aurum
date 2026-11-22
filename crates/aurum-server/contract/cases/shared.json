@@ -1,0 +1,494 @@
+[
+ {
+  "name": "json: truncated object after comma",
+  "method": "POST",
+  "path": "/api/tags",
+  "headers": {
+   "content-type": "application/json"
+  },
+  "body": "{\"a\": 1,"
+ },
+ {
+  "name": "json: truncated object after key",
+  "method": "POST",
+  "path": "/api/tags",
+  "headers": {
+   "content-type": "application/json"
+  },
+  "body": "{\"name\""
+ },
+ {
+  "name": "json: truncated object after colon",
+  "method": "POST",
+  "path": "/api/tags",
+  "headers": {
+   "content-type": "application/json"
+  },
+  "body": "{\"name\": "
+ },
+ {
+  "name": "json: truncated object no close",
+  "method": "POST",
+  "path": "/api/tags",
+  "headers": {
+   "content-type": "application/json"
+  },
+  "body": "{\"name\": \"x\""
+ },
+ {
+  "name": "json: truncated array",
+  "method": "POST",
+  "path": "/api/tags",
+  "headers": {
+   "content-type": "application/json"
+  },
+  "body": "[1, 2"
+ },
+ {
+  "name": "json: truncated array open",
+  "method": "POST",
+  "path": "/api/tags",
+  "headers": {
+   "content-type": "application/json"
+  },
+  "body": "["
+ },
+ {
+  "name": "json: truncated string",
+  "method": "POST",
+  "path": "/api/tags",
+  "headers": {
+   "content-type": "application/json"
+  },
+  "body": "{\"name\": \"Tri"
+ },
+ {
+  "name": "json: trailing comma object",
+  "method": "POST",
+  "path": "/api/tags",
+  "headers": {
+   "content-type": "application/json"
+  },
+  "body": "{\"name\": \"x\",}"
+ },
+ {
+  "name": "json: trailing comma array",
+  "method": "POST",
+  "path": "/api/tags",
+  "headers": {
+   "content-type": "application/json"
+  },
+  "body": "{\"name\": [\"x\",]}"
+ },
+ {
+  "name": "json: missing colon",
+  "method": "POST",
+  "path": "/api/tags",
+  "headers": {
+   "content-type": "application/json"
+  },
+  "body": "{\"name\" \"x\"}"
+ },
+ {
+  "name": "json: missing comma",
+  "method": "POST",
+  "path": "/api/tags",
+  "headers": {
+   "content-type": "application/json"
+  },
+  "body": "{\"name\": \"x\" \"y\": 1}"
+ },
+ {
+  "name": "json: unquoted key",
+  "method": "POST",
+  "path": "/api/tags",
+  "headers": {
+   "content-type": "application/json"
+  },
+  "body": "{name: \"x\"}"
+ },
+ {
+  "name": "json: single quotes",
+  "method": "POST",
+  "path": "/api/tags",
+  "headers": {
+   "content-type": "application/json"
+  },
+  "body": "{'name': 'x'}"
+ },
+ {
+  "name": "json: bad literal tru",
+  "method": "POST",
+  "path": "/api/tags",
+  "headers": {
+   "content-type": "application/json"
+  },
+  "body": "{\"name\": tru}"
+ },
+ {
+  "name": "json: bad literal nul",
+  "method": "POST",
+  "path": "/api/tags",
+  "headers": {
+   "content-type": "application/json"
+  },
+  "body": "nul"
+ },
+ {
+  "name": "json: bad literal None",
+  "method": "POST",
+  "path": "/api/tags",
+  "headers": {
+   "content-type": "application/json"
+  },
+  "body": "{\"name\": None}"
+ },
+ {
+  "name": "json: extra data",
+  "method": "POST",
+  "path": "/api/tags",
+  "headers": {
+   "content-type": "application/json"
+  },
+  "body": "{\"name\": \"x\"} {}"
+ },
+ {
+  "name": "json: extra data number",
+  "method": "POST",
+  "path": "/api/tags",
+  "headers": {
+   "content-type": "application/json"
+  },
+  "body": "1 2"
+ },
+ {
+  "name": "json: number trailing dot",
+  "method": "POST",
+  "path": "/api/tags",
+  "headers": {
+   "content-type": "application/json"
+  },
+  "body": "{\"name\": 1.}"
+ },
+ {
+  "name": "json: leading zero",
+  "method": "POST",
+  "path": "/api/tags",
+  "headers": {
+   "content-type": "application/json"
+  },
+  "body": "{\"name\": 01}"
+ },
+ {
+  "name": "json: lone minus",
+  "method": "POST",
+  "path": "/api/tags",
+  "headers": {
+   "content-type": "application/json"
+  },
+  "body": "{\"name\": -}"
+ },
+ {
+  "name": "json: invalid escape",
+  "method": "POST",
+  "path": "/api/tags",
+  "headers": {
+   "content-type": "application/json"
+  },
+  "body": "{\"name\": \"a\\x\"}"
+ },
+ {
+  "name": "json: invalid unicode escape",
+  "method": "POST",
+  "path": "/api/tags",
+  "headers": {
+   "content-type": "application/json"
+  },
+  "body": "{\"name\": \"\\u12g4\"}"
+ },
+ {
+  "name": "json: truncated unicode escape",
+  "method": "POST",
+  "path": "/api/tags",
+  "headers": {
+   "content-type": "application/json"
+  },
+  "body": "{\"name\": \"\\u12"
+ },
+ {
+  "name": "json: bad low surrogate escape",
+  "method": "POST",
+  "path": "/api/tags",
+  "headers": {
+   "content-type": "application/json"
+  },
+  "body": "{\"name\": \"\\ud83d\\uZZZZ\"}"
+ },
+ {
+  "name": "json: raw newline in string",
+  "method": "POST",
+  "path": "/api/tags",
+  "headers": {
+   "content-type": "application/json"
+  },
+  "body": "{\"name\": \"a\nb\"}"
+ },
+ {
+  "name": "json: raw tab in string",
+  "method": "POST",
+  "path": "/api/tags",
+  "headers": {
+   "content-type": "application/json"
+  },
+  "body": "{\"name\": \"a\tb\"}"
+ },
+ {
+  "name": "json: control char in key",
+  "method": "POST",
+  "path": "/api/tags",
+  "headers": {
+   "content-type": "application/json"
+  },
+  "body": "{\"na\u0001me\": 1}"
+ },
+ {
+  "name": "json: non-ascii before error",
+  "method": "POST",
+  "path": "/api/tags",
+  "headers": {
+   "content-type": "application/json"
+  },
+  "body": "{\"name\": \"żółw\", }"
+ },
+ {
+  "name": "json: whitespace only",
+  "method": "POST",
+  "path": "/api/tags",
+  "headers": {
+   "content-type": "application/json"
+  },
+  "body": " \n\t "
+ },
+ {
+  "name": "json: utf-8 bom valid",
+  "method": "POST",
+  "path": "/api/tags",
+  "headers": {
+   "content-type": "application/json"
+  },
+  "body": "﻿{\"name\": \"Bom\"}"
+ },
+ {
+  "name": "json: utf-8 bom invalid",
+  "method": "POST",
+  "path": "/api/tags",
+  "headers": {
+   "content-type": "application/json"
+  },
+  "body": "﻿{\"name\": "
+ },
+ {
+  "name": "json: comment",
+  "method": "POST",
+  "path": "/api/tags",
+  "headers": {
+   "content-type": "application/json"
+  },
+  "body": "{\"name\": \"x\" /* c */}"
+ },
+ {
+  "name": "json: invalid with path errors (path not reported)",
+  "method": "PATCH",
+  "path": "/api/budgets/abc",
+  "headers": {
+   "content-type": "application/json"
+  },
+  "body": "{\"limit\": "
+ },
+ {
+  "name": "route: PATCH /transactions/years → {transaction_id} 422",
+  "method": "PATCH",
+  "path": "/api/transactions/years",
+  "json": {}
+ },
+ {
+  "name": "route: DELETE /transactions/years → {transaction_id} 422",
+  "method": "DELETE",
+  "path": "/api/transactions/years"
+ },
+ {
+  "name": "route: PATCH /transactions/years with body errors",
+  "method": "PATCH",
+  "path": "/api/transactions/years",
+  "json": {
+   "amount": "x",
+   "date": "nope"
+  }
+ },
+ {
+  "name": "route: PATCH /transactions/bulk",
+  "method": "PATCH",
+  "path": "/api/transactions/bulk",
+  "json": {}
+ },
+ {
+  "name": "route: DELETE /transactions/bulk",
+  "method": "DELETE",
+  "path": "/api/transactions/bulk"
+ },
+ {
+  "name": "route: PUT /transactions/years 405 Allow GET",
+  "method": "PUT",
+  "path": "/api/transactions/years"
+ },
+ {
+  "name": "route: GET /transactions/bulk 405 Allow POST",
+  "method": "GET",
+  "path": "/api/transactions/bulk"
+ },
+ {
+  "name": "route: PATCH /budgets/status",
+  "method": "PATCH",
+  "path": "/api/budgets/status",
+  "json": {
+   "limit": "-1"
+  }
+ },
+ {
+  "name": "route: DELETE /budgets/status",
+  "method": "DELETE",
+  "path": "/api/budgets/status"
+ },
+ {
+  "name": "route: POST /budgets/status 405",
+  "method": "POST",
+  "path": "/api/budgets/status",
+  "json": {}
+ },
+ {
+  "name": "route: 405 Allow is first route GET",
+  "method": "DELETE",
+  "path": "/api/tags"
+ },
+ {
+  "name": "route: 405 Allow is first route PATCH",
+  "method": "GET",
+  "path": "/api/recurring/1"
+ },
+ {
+  "name": "route: 405 Allow settings",
+  "method": "POST",
+  "path": "/api/settings",
+  "json": {}
+ },
+ {
+  "name": "route: HEAD on GET route",
+  "method": "HEAD",
+  "path": "/api/transactions/years"
+ },
+ {
+  "name": "route: HEAD on id route",
+  "method": "HEAD",
+  "path": "/api/goals/1"
+ },
+ {
+  "name": "route: plain OPTIONS id route",
+  "method": "OPTIONS",
+  "path": "/api/accounts/1"
+ },
+ {
+  "name": "route: percent-encoded static segment",
+  "method": "GET",
+  "path": "/api/tag%73"
+ },
+ {
+  "name": "route: percent-encoded id",
+  "method": "DELETE",
+  "path": "/api/tags/%31%32"
+ },
+ {
+  "name": "route: percent-encoded non-int id",
+  "method": "DELETE",
+  "path": "/api/tags/a%20b"
+ },
+ {
+  "name": "route: percent-encoded percent in id",
+  "method": "DELETE",
+  "path": "/api/tags/%2541"
+ },
+ {
+  "name": "route: percent-encoded colliding segment",
+  "method": "PATCH",
+  "path": "/api/transactions/year%73",
+  "json": {}
+ },
+ {
+  "name": "route: percent-encoded slash",
+  "method": "DELETE",
+  "path": "/api/tags/1%2F2"
+ },
+ {
+  "name": "route: id out of int4 range DELETE",
+  "method": "DELETE",
+  "path": "/api/tags/99999999999"
+ },
+ {
+  "name": "route: id out of int4 range PATCH",
+  "method": "PATCH",
+  "path": "/api/goals/2147483648",
+  "json": {}
+ },
+ {
+  "name": "route: negative id out of int4 range",
+  "method": "DELETE",
+  "path": "/api/accounts/-2147483649"
+ },
+ {
+  "name": "route: id at int4 max",
+  "method": "DELETE",
+  "path": "/api/tags/2147483647"
+ },
+ {
+  "name": "route: id out of range but body invalid → 422",
+  "method": "PATCH",
+  "path": "/api/budgets/99999999999",
+  "json": {
+   "limit": "x"
+  }
+ },
+ {
+  "name": "route: id out of range nested",
+  "method": "GET",
+  "path": "/api/assets/99999999999/valuations"
+ },
+ {
+  "name": "route: escaped trailing slash redirect",
+  "method": "GET",
+  "path": "/api/tag%73/"
+ },
+ {
+  "name": "route: escaped first segment",
+  "method": "GET",
+  "path": "/api/%74ags"
+ },
+ {
+  "name": "route: escaped question mark",
+  "method": "GET",
+  "path": "/api/tags%3Fx"
+ },
+ {
+  "name": "route: non-ascii id",
+  "method": "DELETE",
+  "path": "/api/tags/%E2%82%AC"
+ },
+ {
+  "name": "route: invalid utf-8 id",
+  "method": "DELETE",
+  "path": "/api/tags/%FF"
+ },
+ {
+  "name": "route: escaped unknown",
+  "method": "GET",
+  "path": "/api/n%6Fpe"
+ }
+]
