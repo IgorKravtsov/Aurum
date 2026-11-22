@@ -1,8 +1,0 @@
-# Test-only dependencies — kept separate from requirements.txt so the
-# production image never installs a test runner. Install inside the running
-# backend container (see backend/tests/README.md) rather than baking these
-# into the Docker image.
--r requirements.txt
-pytest==9.0.3
-pytest-asyncio==1.4.0
-httpx==0.28.1
