@@ -13,6 +13,7 @@ pub mod db;
 pub mod error;
 pub mod extract;
 pub mod http;
+mod pyjson;
 pub mod repo;
 pub mod response;
 pub mod routes;

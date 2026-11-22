@@ -73,7 +73,10 @@ where
             }
         };
         match (path, query, body) {
-            (Some(path), Some(query), Some(body)) if errors.is_empty() => Ok(Self { path, query, body }),
+            (Some(path), Some(query), Some(body)) if errors.is_empty() => {
+                reject_int4_overflow(&path_value)?;
+                Ok(Self { path, query, body })
+            }
             _ => Err(ApiError::Validation(errors)),
         }
     }
@@ -96,7 +99,9 @@ where
 
     async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
         let value = path_object(parts, state).await;
-        P::from_source(&value, Source::Path).map(ApiPath).map_err(ApiError::Validation)
+        let path = P::from_source(&value, Source::Path).map_err(ApiError::Validation)?;
+        reject_int4_overflow(&value)?;
+        Ok(ApiPath(path))
     }
 }
 
@@ -144,6 +149,23 @@ async fn path_object<S: Send + Sync>(parts: &mut Parts, state: &S) -> Value {
     Value::Object(map)
 }
 
+/// Every path parameter is an `integer` id. Python validates it as an
+/// unbounded `int` and only fails when asyncpg encodes it for the `int4`
+/// column (`DataError` → 500), i.e. after validation succeeded; here the
+/// same happens up front for a valid integer outside the `int4` range.
+/// (Integers beyond `i64` fail validation here: 422 vs Python's 500.)
+fn reject_int4_overflow(path: &Value) -> Result<(), ApiError> {
+    let Value::Object(params) = path else { return Ok(()) };
+    for value in params.values().filter_map(Value::as_str) {
+        let digits = value.trim().replace('_', "");
+        let parsed = digits.parse::<i64>().ok().or_else(|| digits.parse::<f64>().ok().map(|f| f as i64));
+        if parsed.is_some_and(|n| i32::try_from(n).is_err()) {
+            return Err(ApiError::internal(anyhow::anyhow!("path parameter {value:?} is out of int4 range")));
+        }
+    }
+    Ok(())
+}
+
 /// Query params as a JSON object of strings. Like Starlette's
 /// `QueryParams.get`, a repeated key keeps its last value; blank values are
 /// kept (`?year=` is the string `""`, which then fails int parsing).
@@ -180,19 +202,29 @@ async fn read_body(headers: &HeaderMap, body: Body) -> Result<Option<Value>, Api
     if !is_json {
         return Ok(Some(Value::String(String::from_utf8_lossy(&bytes).into_owned())));
     }
-    if std::str::from_utf8(&bytes).is_err() {
+    // json.loads(bytes) decodes a leading UTF-8 BOM away ('utf-8-sig').
+    let bytes = bytes.strip_prefix(b"\xef\xbb\xbf".as_slice()).unwrap_or(&bytes);
+    let Ok(text) = std::str::from_utf8(bytes) else {
         // json.loads() raising something other than JSONDecodeError ends up
         // in FastAPI's generic `except Exception` branch.
         return Err(ApiError::bad_request("There was an error parsing the body"));
-    }
-    serde_json::from_slice::<Value>(&bytes)
-        .map(Some)
-        .map_err(|e| ApiError::Validation(json_decode_error(&bytes, &e).into()))
+    };
+    serde_json::from_str::<Value>(text).map(Some).map_err(|e| {
+        // CPython's exact message and position; the serde mapping is the
+        // fallback for text Python accepts but serde doesn't (NaN, ...).
+        let item = match crate::pyjson::decode_error(text) {
+            Some((pos, msg)) => err::json_invalid(pos, msg),
+            None => json_decode_error(bytes, &e),
+        };
+        ApiError::Validation(item.into())
+    })
 }
 
 /// Maps a serde_json syntax error to Python's `json.JSONDecodeError`
 /// message and character position (best effort: the common cases match
 /// exactly, exotic ones keep the right shape with Python's nearest wording).
+/// Only used when `pyjson` finds no syntax error, i.e. for input CPython
+/// accepts but serde rejects (`NaN`, lone surrogates, huge exponents).
 fn json_decode_error(bytes: &[u8], e: &serde_json::Error) -> aurum_domain::validation::ErrorItem {
     let text = String::from_utf8_lossy(bytes);
     // serde_json reports 1-based line/column of the offending byte.
