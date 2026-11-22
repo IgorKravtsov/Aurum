@@ -9,7 +9,7 @@
 //!   straight into these types (no queries live here);
 //! * `openapi` — `utoipa::ToSchema` impls for the server's `/api/openapi.json`.
 //!
-//! One module per API route group, mirroring `backend/app/schemas/*.py`.
+//! One module per API route group, mirroring the former Python backend's `app/schemas/*.py`.
 
 pub mod decimal;
 pub mod enums;
@@ -45,4 +45,4 @@ pub use pyfmt::{PyDateTime, PyFloat};
 /// `app/core/config.py::APP_VERSION`) — surfaced in the OpenAPI title, in
 /// `GET /api/settings` as `app_version` (deliberately NOT on the
 /// unauthenticated /api/health) and embedded in exported backups.
-pub const APP_VERSION: &str = "1.3.2";
+pub const APP_VERSION: &str = "2.0.0";

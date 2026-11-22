@@ -129,3 +129,71 @@ async fn test_backup_roundtrip_preserves_transaction_splits() {
     assert_eq!(candy["category_id"], sweets);
     assert!(refetched["category"].is_null());
 }
+
+// A backup exported by a 1.x (Python) release must keep restoring after the
+// 2.0.0 rewrite: only `aurum_backup_version` (the format) gates an import,
+// `app_version` is informational. Pinned with a hand-written 1.3.2 file that
+// predates tags, splits, crypto, budgets, goals and FX rates.
+#[tokio::test]
+async fn test_backup_from_1_3_2_restores_in_current_version() {
+    let client = TestApp::start().await;
+    let legacy = json!({
+        "aurum_backup_version": 1,
+        "exported_at": "2026-09-13T10:00:00.123456Z",
+        "app_version": "1.3.2",
+        "accounts": [
+            {"id": 7, "name": "Legacy Account", "type": "checking", "currency": "PLN", "color": null, "is_archived": false},
+        ],
+        "categories": [
+            {"id": 3, "name": "Legacy Category", "kind": "expense", "icon": null, "color": "#e34948", "sort_order": 0, "is_default": false},
+        ],
+        "transactions": [
+            {
+                "id": 11, "account_id": 7, "category_id": 3, "transfer_account_id": null, "type": "expense",
+                "amount": "12.50", "description": "legacy", "merchant": null, "notes": null, "date": "2026-09-01",
+            },
+        ],
+        "assets": [],
+        "asset_valuations": [],
+        "app_settings": {"currency": "PLN"},
+    });
+
+    let import_resp = client.post("/backup/import", legacy).await;
+    assert_eq!(import_resp.status, 200, "{}", import_resp.text);
+    assert_eq!(import_resp.json()["status"], "ok");
+
+    let accounts = client.get("/accounts").await.json();
+    assert!(accounts.as_array().unwrap().iter().any(|a| a["id"] == 7 && a["name"] == "Legacy Account"));
+    let listing = client.get("/transactions").await.json();
+    let restored = listing["items"].as_array().unwrap().iter().find(|t| t["id"] == 11).unwrap().clone();
+    assert_eq!(restored["amount"], "12.50");
+
+    // The next export is stamped with the running version, the format is unchanged.
+    let exported = client.get("/backup/export").await.json();
+    assert_eq!(exported["app_version"], aurum_domain::APP_VERSION);
+    assert_eq!(exported["aurum_backup_version"], 1);
+}
+
+// Re-stamping a fresh export as coming from 1.3.2 changes nothing: the
+// version string is never compared, only the format number.
+#[tokio::test]
+async fn test_backup_import_ignores_app_version() {
+    let client = TestApp::start().await;
+    for app_version in ["1.3.2", "1.0.0", "0.0.1", "3.7.1"] {
+        let mut payload = client.get("/backup/export").await.json();
+        payload["app_version"] = json!(app_version);
+        let resp = client.post("/backup/import", payload).await;
+        assert_eq!(resp.status, 200, "app_version {app_version}: {}", resp.text);
+    }
+}
+
+// ... while a different *format* number is still refused.
+#[tokio::test]
+async fn test_backup_import_rejects_unsupported_format_version() {
+    let client = TestApp::start().await;
+    let mut payload = client.get("/backup/export").await.json();
+    payload["aurum_backup_version"] = json!(2);
+    let resp = client.post("/backup/import", payload).await;
+    assert_eq!(resp.status, 400);
+    assert!(resp.json()["detail"].as_str().unwrap().starts_with("Unsupported backup version 2"));
+}

@@ -1,5 +1,5 @@
-//! API contract types for `/api/backup` — port of `backend/app/schemas/backup.py`,
-//! plus the pure checks of `backend/app/services/backup_service.py`
+//! API contract types for `/api/backup` — port of the former Python backend's `app/schemas/backup.py`,
+//! plus the pure checks of the former Python backend's `app/services/backup_service.py`
 //! (format version, referential integrity, insert order), so any client can
 //! vet a backup file before uploading it.
 //!
@@ -816,7 +816,7 @@ mod tests {
         });
         let text = serde_json::to_string(&payload).unwrap();
         assert!(text.starts_with(
-            r#"{"aurum_backup_version":1,"exported_at":"2026-01-02T03:04:05Z","app_version":"1.3.2","accounts":[],"categories":[],"tags":[],"transactions":[{"id":1,"account_id":2,"category_id":null,"transfer_account_id":null,"type":"expense","amount":"10.00","destination_amount":null,"description":"x","merchant":null,"notes":null,"date":"2026-01-01","tag_ids":[3,1]}],"transaction_splits":[]"#
+            r#"{"aurum_backup_version":1,"exported_at":"2026-01-02T03:04:05Z","app_version":"2.0.0","accounts":[],"categories":[],"tags":[],"transactions":[{"id":1,"account_id":2,"category_id":null,"transfer_account_id":null,"type":"expense","amount":"10.00","destination_amount":null,"description":"x","merchant":null,"notes":null,"date":"2026-01-01","tag_ids":[3,1]}],"transaction_splits":[]"#
         ));
         assert!(text.ends_with(
             r#""app_settings":{"currency":"USD","negative_cash_flow_threshold_months":2,"net_worth_decline_threshold_months":2,"risky_allocation_threshold_percent":20,"idle_cash_threshold_amount":"1000","idle_cash_threshold_days":60}}"#
