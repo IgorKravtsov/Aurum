@@ -1,0 +1,82 @@
+[
+ {
+  "name": "crypto without AURUM_COINGECKO_API_KEY: create is a 400 (and rolled back)",
+  "method": "POST",
+  "path": "/api/crypto/holdings",
+  "json": {
+   "coingecko_id": "bitcoin",
+   "symbol": "btc",
+   "name": "Bitcoin",
+   "quantity": "0.5",
+   "price_per_unit": "40000",
+   "date": "2026-01-01"
+  }
+ },
+ {
+  "name": "create with unknown portfolio is still that 400 first",
+  "method": "POST",
+  "path": "/api/crypto/holdings",
+  "json": {
+   "coingecko_id": "bitcoin",
+   "symbol": "btc",
+   "name": "Bitcoin",
+   "quantity": "0.5",
+   "price_per_unit": "40000",
+   "date": "2026-01-01",
+   "portfolio_id": 7
+  }
+ },
+ {
+  "name": "portfolio ids continue after the rolled-back default",
+  "method": "POST",
+  "path": "/api/crypto/portfolios",
+  "json": {
+   "name": "Main"
+  }
+ },
+ {
+  "name": "create in that portfolio: 400",
+  "method": "POST",
+  "path": "/api/crypto/holdings",
+  "json": {
+   "coingecko_id": "bitcoin",
+   "symbol": "btc",
+   "name": "Bitcoin",
+   "quantity": "0.5",
+   "price_per_unit": "40000",
+   "date": "2026-01-01",
+   "portfolio_id": 2
+  }
+ },
+ {
+  "name": "nothing to price: holdings sync without a key",
+  "method": "GET",
+  "path": "/api/crypto/holdings",
+  "mask": [
+   "last_synced_at"
+  ]
+ },
+ {
+  "name": "forced refresh without holdings",
+  "method": "POST",
+  "path": "/api/crypto/refresh",
+  "mask": [
+   "last_synced_at"
+  ]
+ },
+ {
+  "name": "search needs the key",
+  "method": "GET",
+  "path": "/api/crypto/search?q=bit"
+ },
+ {
+  "name": "90d with nothing held",
+  "method": "GET",
+  "path": "/api/crypto/performance/90d"
+ },
+ {
+  "name": "history",
+  "method": "GET",
+  "path": "/api/crypto/history?range=7d"
+ }
+]

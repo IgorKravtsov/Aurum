@@ -1,0 +1,50 @@
+[
+ {
+  "name": "crypto outage (fake answers 503, see crypto_fake.py): forced refresh",
+  "method": "POST",
+  "path": "/api/crypto/refresh",
+  "mask": [
+   "last_synced_at"
+  ]
+ },
+ {
+  "name": "lazy read still within the window",
+  "method": "GET",
+  "path": "/api/crypto/holdings",
+  "mask": [
+   "last_synced_at"
+  ]
+ },
+ {
+  "name": "create during an outage keeps the holding unpriced",
+  "method": "POST",
+  "path": "/api/crypto/holdings",
+  "json": {
+   "coingecko_id": "bitcoin",
+   "symbol": "btc",
+   "name": "Bitcoin",
+   "quantity": "2",
+   "price_per_unit": "1000",
+   "date": "2026-01-01",
+   "portfolio_id": 1
+  }
+ },
+ {
+  "name": "90d during an outage",
+  "method": "GET",
+  "path": "/api/crypto/performance/90d"
+ },
+ {
+  "name": "search during an outage is a 500",
+  "method": "GET",
+  "path": "/api/crypto/search?q=bit"
+ },
+ {
+  "name": "refresh scoped to portfolio during outage",
+  "method": "POST",
+  "path": "/api/crypto/refresh?portfolio_id=1",
+  "mask": [
+   "last_synced_at"
+  ]
+ }
+]
