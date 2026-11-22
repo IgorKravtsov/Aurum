@@ -86,7 +86,7 @@ Export your entire dataset — accounts, transactions, assets, budgets, goals �
 
 ## 🚀 Getting Started
 
-Aurum ships as three containers — Postgres, a FastAPI backend, and an nginx-served frontend — wired together with Docker Compose. No local Python, Node, or Postgres installation needed; Docker is the only requirement.
+Aurum ships as three containers — Postgres, a Rust backend, and an nginx-served frontend — wired together with Docker Compose. No local Rust, Node, or Postgres installation needed; Docker is the only requirement.
 
 ### 1. Install Docker
 
@@ -270,9 +270,9 @@ If you find a security issue, please open a private report via GitHub's Security
 ## 🛠️ Tech Stack
 
 - **Frontend:** React 19, TypeScript, Vite, Tailwind CSS, React Router, TanStack Query, Recharts
-- **Backend:** FastAPI, SQLAlchemy 2.0 (async), Alembic, Pydantic v2
+- **Backend:** Rust (axum, sqlx) — `crates/aurum-server`; the original FastAPI/SQLAlchemy/Alembic implementation lives on in `backend/` as the reference for the contract tests
 - **Database:** PostgreSQL
-- **Deployment:** Docker Compose (Postgres + FastAPI + nginx-served SPA)
+- **Deployment:** Docker Compose (Postgres + Rust + nginx-served SPA)
 
 ## 🤝 Contributing
 

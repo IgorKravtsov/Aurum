@@ -22,10 +22,14 @@ services:
       retries: 10
 
   backend:
-    # The published image lets a server deploy without Python or a local build.
+    # The published image lets a server deploy without Rust or a local build.
     # Keep build: for contributors; `docker compose up --no-build` uses image:.
+    # The backend is the Rust server (crates/aurum-server), so its build
+    # context is the repository root (the Cargo workspace), not backend/.
     image: ${AURUM_BACKEND_IMAGE:-igorkravtsov/aurum-backend:1.3.2}
-    build: ./backend
+    build:
+      context: .
+      dockerfile: docker/backend.Dockerfile
     restart: unless-stopped
     # Nothing here ever needs to gain privileges (no setuid binaries, no sudo),
     # so forbid it outright — this is what stops a compromised process from

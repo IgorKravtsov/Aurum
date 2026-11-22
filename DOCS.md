@@ -37,7 +37,7 @@ after installing it (see its README), run `aurum --help` or `aurum skills get co
 
 ## Base URL & Authentication
 
-Aurum ships as three containers (Postgres, FastAPI backend, nginx-served frontend). The frontend
+Aurum ships as three containers (Postgres, Rust backend, nginx-served frontend). The frontend
 container reverse-proxies `/api/*` straight through to the backend, so **the API and the web UI share
 the same host and port** — whatever you set `AURUM_WEB_PORT` to in `.env` (default `3000`):
 
