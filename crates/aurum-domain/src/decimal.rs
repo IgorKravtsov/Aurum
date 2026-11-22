@@ -436,6 +436,10 @@ mod sqlx_impl {
 ///
 /// Layout: `ndigits: i16, weight: i16, sign: u16, dscale: u16`, then
 /// `ndigits` base-10000 digits (`i16`); value = Σ dᵢ·10000^(weight−i).
+///
+/// Only the `sqlx` impls above call into it, so builds without that feature
+/// (the CLI, the FFI crate) would otherwise warn; the unit tests still use it.
+#[cfg_attr(not(feature = "sqlx"), allow(dead_code))]
 pub(crate) mod pg_numeric {
     use super::{Decimal, ParseDecimalError, pow10};
     use num_bigint::{BigInt, Sign};
