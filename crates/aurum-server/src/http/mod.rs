@@ -2,4 +2,5 @@
 
 pub mod cors;
 pub mod docs;
+pub mod route_table;
 pub mod routing;

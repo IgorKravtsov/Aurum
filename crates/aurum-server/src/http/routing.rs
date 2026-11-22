@@ -3,6 +3,9 @@
 //! * Unknown path → 404 `{"detail":"Not Found"}`.
 //! * Known path, wrong method → 405 `{"detail":"Method Not Allowed"}` with
 //!   an `Allow` header.
+//! * Route order: Starlette's first-match-wins decision (static path vs.
+//!   sibling `{id}` route, `Allow` of the first matching route, decoded
+//!   percent-escapes) is replayed from `route_table` before axum routes.
 //! * `HEAD` on an API route → 405 as well: FastAPI's `@router.get` registers
 //!   GET only (unlike axum's `get`, which also answers HEAD). Only the docs
 //!   pages, plain Starlette routes, answer HEAD.
@@ -23,6 +26,8 @@ use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
 use serde_json::json;
 use tower::ServiceExt;
+
+use super::route_table::{self, Resolution};
 
 /// Marks a 404 produced by the router fallback (as opposed to a handler's
 /// own 404 such as "Tag not found").
@@ -68,8 +73,31 @@ pub async fn starlette_routing(
     if request.method().as_str().as_bytes() == PROBE_METHOD {
         return next.run(request).await;
     }
+    let mut request = request;
+    match route_table::resolve(request.method().as_str(), request.uri().path()) {
+        Resolution::MethodNotAllowed { allow } => {
+            let mut response = method_not_allowed().await;
+            response.headers_mut().insert(header::ALLOW, HeaderValue::from_static(allow));
+            return response;
+        }
+        Resolution::Handle { rewrite: Some(path) } | Resolution::NoMatch { rewrite: Some(path) } => {
+            let path_and_query = match request.uri().query() {
+                Some(query) => format!("{path}?{query}"),
+                None => path,
+            };
+            let mut parts = request.uri().clone().into_parts();
+            if let Ok(value) = path_and_query.parse() {
+                parts.path_and_query = Some(value);
+                if let Ok(uri) = Uri::from_parts(parts) {
+                    *request.uri_mut() = uri;
+                }
+            }
+        }
+        Resolution::Handle { rewrite: None } | Resolution::NoMatch { rewrite: None } => {}
+    }
     let path = request.uri().path().to_string();
 
+    // API routes are settled by the table above; this covers the rest.
     if request.method() == Method::HEAD
         && !head_paths.contains(&path.as_str())
         && let Some(allow) = probe(&router, &path).await

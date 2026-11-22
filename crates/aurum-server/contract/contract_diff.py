@@ -59,9 +59,8 @@ def send(base: str, case: dict) -> tuple[int, dict, bytes]:
         value = response.getheader(name)
         if value is not None:
             picked[name] = value.replace(base, "<BASE>").replace(url.netloc, "<HOST>")
-    if response.status == 405:
-        # Allow lists the methods of the matched path; ordering differs.
-        picked.pop("allow", None)
+    # Allow on a 405 is compared too: both list the methods of Starlette's
+    # first matching route (see http/route_table.rs).
     conn.close()
     return response.status, picked, data
 

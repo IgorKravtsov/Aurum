@@ -95,9 +95,16 @@ impl IntoResponse for ApiError {
     }
 }
 
+/// Marks the 500 of an uncaught error. In Starlette it comes from
+/// `ServerErrorMiddleware`, *outside* the CORS middleware, so it carries no
+/// CORS headers (not even `Vary: Origin`); the CORS layer checks this.
+#[derive(Debug, Clone, Copy)]
+pub struct Uncaught;
+
 /// Starlette's bare 500.
 pub fn internal_server_error() -> Response {
     let mut response = (StatusCode::INTERNAL_SERVER_ERROR, "Internal Server Error").into_response();
     response.headers_mut().insert(header::CONTENT_TYPE, HeaderValue::from_static("text/plain; charset=utf-8"));
+    response.extensions_mut().insert(Uncaught);
     response
 }

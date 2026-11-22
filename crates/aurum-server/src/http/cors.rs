@@ -154,6 +154,9 @@ pub async fn middleware(State(cors): State<Arc<Cors>>, request: Request<Body>, n
         return cors.preflight(request.headers());
     }
     let mut response = next.run(request).await;
+    if response.extensions().get::<crate::error::Uncaught>().is_some() {
+        return response;
+    }
     cors.decorate(origin.as_deref(), response.headers_mut());
     response
 }
