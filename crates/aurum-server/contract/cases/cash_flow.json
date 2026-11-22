@@ -1,0 +1,15 @@
+[
+  {"name": "all", "method": "GET", "path": "/api/cash-flow"},
+  {"name": "start only", "method": "GET", "path": "/api/cash-flow?start_date=2026-01-01"},
+  {"name": "end only", "method": "GET", "path": "/api/cash-flow?end_date=2026-03-31"},
+  {"name": "both", "method": "GET", "path": "/api/cash-flow?start_date=2025-02-15&end_date=2026-10-31"},
+  {"name": "start after end, same month", "method": "GET", "path": "/api/cash-flow?start_date=2026-10-20&end_date=2026-10-05"},
+  {"name": "start after end", "method": "GET", "path": "/api/cash-flow?start_date=2026-10-20&end_date=2026-08-05"},
+  {"name": "start beyond data", "method": "GET", "path": "/api/cash-flow?start_date=2030-01-01"},
+  {"name": "end before data", "method": "GET", "path": "/api/cash-flow?end_date=2000-01-01"},
+  {"name": "window without data", "method": "GET", "path": "/api/cash-flow?start_date=2024-01-01&end_date=2024-03-01"},
+  {"name": "bad dates", "method": "GET", "path": "/api/cash-flow?start_date=2026-13-01&end_date=yesterday"},
+  {"name": "datetime start", "method": "GET", "path": "/api/cash-flow?start_date=2026-01-01T00:00:00"},
+  {"name": "empty start", "method": "GET", "path": "/api/cash-flow?start_date="},
+  {"name": "POST", "method": "POST", "path": "/api/cash-flow"}
+]
