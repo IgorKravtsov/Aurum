@@ -1,10 +1,11 @@
 # aurum-server API tests
 
-Black-box tests of the HTTP API, ported one-to-one from the pytest suite in
-`backend/tests`: one module per pytest module (`test_accounts.rs` ↔
-`test_accounts.py`), one `#[tokio::test]` per pytest test with the same name,
-the same requests and the same assertions. All modules build into a single
-test binary (`api`, see `main.rs`).
+Black-box tests of the HTTP API. They were ported one-to-one from the pytest
+suite of the former Python backend (removed in 2.0.0): one module per former
+pytest module (`test_accounts.rs` ↔ `test_accounts.py`), one `#[tokio::test]`
+per pytest test with the same name, the same requests and the same
+assertions. All modules build into a single test binary (`api`, see
+`main.rs`). New tests are added here, in the module of their route group.
 
 ## Running
 
@@ -23,8 +24,8 @@ Without a reachable Postgres every test fails with a message saying so.
 
 - Once per run the harness creates a template database `aurum_it_<pid>_template`,
   runs the server's own migrations, truncates every table and runs the
-  server's seed (exactly the state the pytest harness reset to before each
-  test).
+  server's seed (the clean state every test starts from; the former pytest
+  harness reset to the same state before each test).
 - Each test gets its own database `aurum_it_<pid>_<n>` created from that
   template (`CREATE DATABASE ... TEMPLATE`), so tests run in parallel and
   never see each other's rows. It is dropped when the test ends; databases
@@ -33,7 +34,7 @@ Without a reachable Postgres every test fails with a message saying so.
 - The app is `aurum_server::build_app` served in-process on a random port and
   called over real HTTP (base URL ends in `/api`).
 - NBP and CoinGecko are fakes on a random port per test (`common/fakes.rs`,
-  port of `fake_providers.py`): default NBP rates USD 4, EUR 4.25, GBP 5,
+  port of the former `fake_providers.py`): default NBP rates USD 4, EUR 4.25, GBP 5,
   CHF 4.5, UAH 0.1, RUB 0.05 PLN on business days; `serve_rates`, `fail`,
   `requests`; CoinGecko `serve_markets`, `serve_90d_change`, `fail`, `forbid`
   (a forbidden call fails the test), `record_market_calls`/`record_chart_calls`.

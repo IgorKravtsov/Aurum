@@ -23,13 +23,6 @@ id_ed25519
 *.sqlite3
 aurum-backup-*.json
 
-# Python
-__pycache__/
-*.pyc
-.venv/
-*.egg-info/
-.pytest_cache/
-
 # Node / frontend
 node_modules/
 dist/

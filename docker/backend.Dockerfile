@@ -1,6 +1,6 @@
 # Aurum backend — the Rust server (crates/aurum-server).
 #
-# Build context is the REPOSITORY ROOT, not backend/: the server is a member
+# Build context is the REPOSITORY ROOT, not a subdirectory: the server is a member
 # of the Cargo workspace and needs Cargo.toml/Cargo.lock and the sibling
 # crates (aurum-domain, ...). docker-compose.yml sets this up:
 #   build: { context: ., dockerfile: docker/backend.Dockerfile }

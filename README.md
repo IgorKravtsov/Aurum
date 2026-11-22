@@ -270,7 +270,7 @@ If you find a security issue, please open a private report via GitHub's Security
 ## 🛠️ Tech Stack
 
 - **Frontend:** React 19, TypeScript, Vite, Tailwind CSS, React Router, TanStack Query, Recharts
-- **Backend:** Rust (axum, sqlx) — `crates/aurum-server`; the original FastAPI/SQLAlchemy/Alembic implementation lives on in `backend/` as the reference for the contract tests
+- **Backend:** Rust (axum, sqlx) — `crates/aurum-server`; the REST API, database schema and backup format are unchanged from the FastAPI implementation of the 1.x releases
 - **Database:** PostgreSQL
 - **Deployment:** Docker Compose (Postgres + Rust + nginx-served SPA)
 

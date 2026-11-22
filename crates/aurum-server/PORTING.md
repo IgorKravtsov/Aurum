@@ -1,28 +1,39 @@
-# Porting a route group from FastAPI to `aurum-server`
+# Developing `aurum-server`: conventions of the Python-compatible API
 
-The Rust server must be a drop-in replacement for `backend/app`: same paths,
-same JSON byte for byte, same status codes, same FastAPI error bodies, same
-Postgres schema (ADR 0002), same `AURUM_*` settings. This document is the
-contract for everyone porting a route group. The reference implementations
-are **tags** (simple CRUD) and **settings** (Decimal, PATCH, 409).
+`aurum-server` is the Rust backend of Aurum. Since 2.0.0 it is the only one:
+the FastAPI implementation (`backend/`) it was ported from, and the
+differential harness that proved the two byte-identical, were removed. The
+HTTP contract did not change: same paths, same JSON byte for byte, same status
+codes, same FastAPI-shaped error bodies, same Postgres schema (ADR 0002),
+same `AURUM_*` settings, and backups exported by 1.x still restore. This
+document keeps what that port learned — the conventions every route group
+follows, the parity details that are easy to break, and the known divergences
+from the former Python behaviour (section 10) — so a new or changed endpoint
+stays consistent with the rest. The reference implementations are **tags**
+(simple CRUD) and **settings** (Decimal, PATCH, 409).
+
+Mentions of "Python"/"pydantic"/"SQLAlchemy" below describe the former
+implementation whose observable behaviour is the contract; the web frontend,
+`aurum-cli` and the mobile clients still depend on it.
 
 ## 1. Where things go — one set of files per group
 
-| What | File (replace `<group>`, e.g. `goals`) | Python source |
+| What | File (replace `<group>`, e.g. `goals`) | Former Python source |
 |---|---|---|
 | Contract types (request/response DTOs) | `crates/aurum-domain/src/<group>.rs` | `app/schemas/<group>.py` |
 | HTTP handlers + router | `crates/aurum-server/src/routes/<group>.rs` | `app/api/routes/<group>.py` |
 | Business logic | `crates/aurum-server/src/services/<group>.rs` | `app/services/*`, inline route logic |
 | SQL | `crates/aurum-server/src/repo/<group>.rs` | the SQLAlchemy queries |
-| Differential test cases | `crates/aurum-server/contract/cases/<group>.json` | — |
+| Integration tests | `crates/aurum-server/tests/test_<group>.rs` | `tests/test_<group>.py` |
 
-Every module already exists and is wired in (`routes/mod.rs` merges every
-`<group>::router()`), so porting a group only touches its own files.
+Every module is wired in (`routes/mod.rs` merges every `<group>::router()`),
+so changing a group only touches its own files. A new group adds the same
+set of files plus one `mod`/`merge` line in `routes/mod.rs`.
 **Shared files** — `lib.rs`, `routes/mod.rs`, `extract.rs`, `error.rs`,
 `response.rs`, `http/*`, `db/*`, `aurum-domain/src/{decimal,validation,pyfmt,enums,text}.rs`,
-the `Cargo.toml`s — should not need changes. If you need a new shared helper,
-keep it private in your group module and say so in your report so it can be
-promoted once; if you need a new crate dependency, add it to
+the `Cargo.toml`s — should not need changes for a route group change. If you
+need a new shared helper, keep it private in your group module and promote it
+once a second group needs it; if you need a new crate dependency, add it to
 `[workspace.dependencies]` in the root `Cargo.toml` and reference it with
 `{ workspace = true }`.
 
@@ -110,8 +121,9 @@ ge=2000, le=2100)` → `o.with_default("year", || today.year() as i64, |v| v.int
 Path ids: `i64` (`v.int()`).
 
 Don't trust memory for pydantic wording: if an error type you need isn't in
-`validation::err`, capture the real response from the Python server
-(section 8) and add a constructor with the exact `msg`/`ctx`.
+`validation::err`, take the exact `msg`/`ctx` from pydantic v2's documented
+error types (or an existing test that asserts it) and add a constructor with
+them, plus a test in `crates/aurum-server/tests`.
 
 ## 5. Response DTOs
 
@@ -196,32 +208,53 @@ Don't trust memory for pydantic wording: if an error type you need isn't in
   CoinGecko), API key `state.settings.coingecko_api_key`.
 * Destructive operations: `crate::audit::log_destructive("account.deleted", &[("account_id", &id)])`.
 
-## 9. Comparing against Python
+## 9. Running and testing
 
-1. Build: `cargo build -p aurum-server`.
-2. Start both servers on fresh, equivalent databases (Python on :8001,
-   Rust on :8002):
-   `PYTHON_BIN=/path/to/venv/bin/python AURUM_POSTGRES_PORT=5432 crates/aurum-server/contract/start_pair.sh`
-   (`PG_CONTAINER=<name>` to run psql through docker; `--stop` to stop).
-3. Replay your cases and diff status, body bytes and contract headers:
-   `python3 crates/aurum-server/contract/contract_diff.py --python http://127.0.0.1:8001 --rust http://127.0.0.1:8002 crates/aurum-server/contract/cases/<group>.json`
-   Cases run in order and share state; restart the pair before a re-run.
-   Every file also passes when all of them run on one pair (in the order
-   of `routes/mod.rs`, then `backup`, `shared`). Point
-   `AURUM_NBP_BASE_URL`/`AURUM_COINGECKO_BASE_URL` at the fakes
-   (`cases/crypto_fake.py` serves both) — dashboard/insights/net-worth
-   cases need deterministic FX rates. `cases/shared.json` covers the shared
-   layer (JSON syntax errors, route order, escapes, `int4` overflow).
-   Use `"mask": ["created_at"]` for genuinely time-dependent fields only.
-   Cover the happy path, every `HTTPException` branch and a few 422s.
-4. The black-box pytest suite runs unchanged against the Rust server:
-   `cd backend && AURUM_TEST_SERVER=rust pytest -v` (see `backend/tests/README.md`;
-   the harness drives `aurum-server migrate|seed|serve`).
-5. The same suite, ported to Rust, runs in-process with `cargo test -p aurum-server`
-   (`crates/aurum-server/tests/`, one module per pytest module; see its `README.md`).
-   New behaviour gets its test there.
+Prerequisites: a Rust toolchain (stable, MSRV 1.88, see `rust-version` in the
+root `Cargo.toml`) and a reachable Postgres 16 whose user may `CREATE DATABASE`
+(e.g. `docker run -d -p 5432:5432 -e POSTGRES_USER=aurum -e POSTGRES_PASSWORD=aurum postgres:16-alpine`).
 
-## 10. Known gaps (shared layer)
+```bash
+cargo build -p aurum-server
+# Run the server against a database: migrate + seed + listen on AURUM_HOST:AURUM_PORT
+AURUM_POSTGRES_HOST=127.0.0.1 cargo run -p aurum-server -- serve
+# Or step by step: `aurum-server migrate`, `aurum-server seed`, `aurum-server serve`
+
+cargo fmt --all --check
+cargo clippy --workspace --all-targets -- -D warnings
+AURUM_POSTGRES_HOST=127.0.0.1 cargo test --workspace
+```
+
+1. The black-box API suite lives in `crates/aurum-server/tests/` (one module
+   per route group, see its `README.md`): every test builds the app in-process
+   on a fresh database cloned from a migrated + seeded template and talks to
+   it over real HTTP. **New or changed behaviour gets its test there** — cover
+   the happy path, every `HTTPException` branch and a few 422s.
+2. Unit tests of the pure logic sit next to the code in `aurum-domain`
+   (validation, `Decimal`, `pyfmt`, backup checks, ...). Tests that need
+   deterministic FX rates or CoinGecko data point
+   `AURUM_NBP_BASE_URL` / `AURUM_COINGECKO_BASE_URL` at the fakes in
+   `tests/common/fakes.rs` (the harness does this for you).
+3. `aurum-cli`'s `tests/coverage.rs` compares the CLI commands with
+   `http/route_table.rs`: a new endpoint needs a CLI command (and the
+   built-in skill/docs update, see `AGENTS.md`) or that test fails.
+4. Migrations: schema changes are new numbered files in
+   `crates/aurum-server/migrations/` (never edit an applied one — sqlx
+   verifies their checksums). They continue from the frozen Alembic baseline
+   (ADR 0002): `0001_baseline.sql` is the schema of the last Alembic
+   revision, so a database created by 1.x upgrades in place when the new
+   image starts, and an existing `alembic_version` table is left untouched.
+5. A backup is compatible across releases when the `aurum_backup_version`
+   (format) matches; `app_version` is informational only. Fields added later
+   must be optional with a default in `FromInput` (see `aurum_domain::backup`)
+   so older files — including those exported by 1.x — keep restoring;
+   `test_backup_from_1_3_2_restores_in_current_version` pins this.
+
+## 10. Known divergences from the former Python backend
+
+Accepted differences from the 1.x behaviour (everything else was verified
+byte-identical against the Python server, response bodies, status codes and
+the contract headers, when the port was finished):
 
 * `openapi.json` is generated by utoipa: same paths, not byte-identical to FastAPI's.
 * Python `Decimal("-0.00")` (negative zero) can't be represented; prints `0.00`.
@@ -235,3 +268,8 @@ Don't trust memory for pydantic wording: if an error type you need isn't in
 * Row order of an export without `ORDER BY` (Postgres heap order) can
   differ after a long shared history (e.g. `fx_rates` inserted through
   different pooled connections); on fresh databases it matches.
+* A path id beyond `i64` is a 422 (500 in Python); out-of-range ids in a
+  query/body still give 404/400 here vs 500 in Python (section 6).
+* One test of the old suite is `#[ignore]`d in `crates/aurum-server/tests`
+  because it was already stale in Python (`cargo test -p aurum-server --test
+  api -- --ignored` runs it).

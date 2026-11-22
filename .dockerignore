@@ -15,12 +15,6 @@ frontend/
 **/dist
 .vite
 
-# The legacy Python backend, its virtualenvs and caches.
-backend/
-.venv
-**/__pycache__
-*.pyc
-
 # Local secrets and data never belong in an image layer.
 .env
 .env.*

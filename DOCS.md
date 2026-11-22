@@ -107,7 +107,7 @@ Standard HTTP status codes:
 | `422` | Request body failed schema validation (wrong type, missing required field, out-of-range value) |
 | `503` | An FX rate was not cached locally and NBP is temporarily unavailable |
 
-Error bodies follow FastAPI's default shape:
+Error bodies keep the shape FastAPI used in the 1.x releases (`detail`):
 
 ```json
 { "detail": "Category 'Salary' is a income category and cannot be used for a expense transaction" }
