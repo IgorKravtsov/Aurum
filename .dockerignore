@@ -1,0 +1,32 @@
+# The backend image is built from the repo root (it needs the whole Cargo
+# workspace), so everything below would otherwise be shipped to the daemon
+# as build context. Rust and Node build output in particular is gigabytes of
+# host-specific artifacts that the image rebuilds itself anyway.
+target/
+**/target/
+.git
+.github
+.agents
+.DS_Store
+
+# Frontend is built from its own context (./frontend), not from here.
+frontend/
+**/node_modules
+**/dist
+.vite
+
+# Local secrets and data never belong in an image layer.
+.env
+.env.*
+!.env.example
+*.sql
+*.dump
+*.sqlite3
+aurum-backup-*.json
+
+# Docs, e2e and test fixtures are not needed to build the server.
+docs/
+e2e/
+images/
+*.md
+!LICENSE

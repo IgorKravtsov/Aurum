@@ -13,7 +13,7 @@ interface TagInputProps {
 // Free-text, multi-select tag picker with inline create — types like an
 // autocomplete, Enter either picks the top matching existing tag or creates
 // a new one (the backend dedupes case-insensitively either way, see
-// routes/tags.py). No dedicated tag-management page yet: renaming/deleting a
+// the former Python backend's routes/tags.py). No dedicated tag-management page yet: renaming/deleting a
 // tag globally isn't exposed here, only removing it from this transaction.
 export function TagInput({ value, onChange }: TagInputProps) {
   const { t } = useTranslation();

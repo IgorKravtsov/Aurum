@@ -32,7 +32,7 @@ export function deleteCryptoPortfolio(portfolioId: number) {
 }
 
 // Also triggers the lazy once-a-day auto-refresh server-side — see
-// services/crypto_service.py. `portfolioId` only narrows what comes back in
+// the former Python backend's services/crypto_service.py. `portfolioId` only narrows what comes back in
 // `holdings` — the sync itself (and the 24h window) always covers every
 // portfolio, see refresh_prices' own docstring.
 export function fetchCryptoHoldings(portfolioId?: number | null) {

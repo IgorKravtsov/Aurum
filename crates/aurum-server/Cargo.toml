@@ -1,0 +1,46 @@
+[package]
+name = "aurum-server"
+description = "Aurum REST API server (ported from the former Python backend, same HTTP contract and Postgres schema)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+# Every file in tests/ is a module of the single `api` test binary below
+# (one link instead of one per file); see tests/main.rs.
+autotests = false
+
+[[bin]]
+name = "aurum-server"
+path = "src/main.rs"
+
+[dependencies]
+aurum-domain = { workspace = true, features = ["sqlx", "openapi"] }
+anyhow = { workspace = true }
+axum = { workspace = true }
+bigdecimal = { workspace = true }
+chrono = { workspace = true }
+clap = { workspace = true }
+dotenvy = { workspace = true }
+http-body-util = { workspace = true }
+reqwest = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_urlencoded = { workspace = true }
+sqlx = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+tower = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+utoipa = { workspace = true }
+utoipa-axum = { workspace = true }
+
+# Black-box API tests ported from the former Python backend tests (pytest): the app runs
+# in-process against a fresh Postgres database per test (they use only the
+# regular [dependencies] above). See tests/README.md.
+[[test]]
+name = "api"
+path = "tests/main.rs"
+
+[lints]
+workspace = true

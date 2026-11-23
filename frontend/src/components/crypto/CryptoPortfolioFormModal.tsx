@@ -67,7 +67,7 @@ export function CryptoPortfolioFormModal({ open, onClose, portfolio, onDeleted }
       onClose();
     } catch {
       // 400 when the portfolio still has coins in it — the only realistic
-      // failure mode here (see services/crypto_service.py's delete_portfolio).
+      // failure mode here (see the former Python backend's services/crypto_service.py's delete_portfolio).
       setDeleteError(t("crypto.portfolio.deleteError"));
     }
   }

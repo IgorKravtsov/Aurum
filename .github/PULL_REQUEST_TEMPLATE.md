@@ -6,9 +6,9 @@
 
 ## Checklist
 
-- [ ] I actually ran `npm run build` (frontend) and/or `pytest` (backend) locally, not just assumed it would pass.
+- [ ] I actually ran `npm run build` (frontend) and/or `cargo test --workspace` (backend, CLI) locally, not just assumed it would pass.
 - [ ] If this adds/changes tests, I ran them and watched them pass — not just wrote assertions that look right.
-- [ ] New/changed table or column → included an Alembic migration (see [CONTRIBUTING.md](../CONTRIBUTING.md#before-opening-a-pr)).
+- [ ] New/changed table or column → included a SQL migration in `crates/aurum-server/migrations` (see [CONTRIBUTING.md](../CONTRIBUTING.md#before-opening-a-pr)).
 - [ ] New user-facing text is in `frontend/src/lib/i18n.ts` for **both** `ru` and `en`, not hardcoded.
 - [ ] If this touches the UI, I checked it at a narrow (mobile) viewport, not just desktop.
 - [ ] No personal/financial data, credentials, or API keys anywhere in the diff — screenshots included, if any.

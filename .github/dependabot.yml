@@ -13,18 +13,19 @@ updates:
       npm-major:
         update-types: ["major"]
 
-  # Backend pip dependencies — same minor/patch vs. major split as npm above.
-  - package-ecosystem: "pip"
-    directory: "/backend"
+  # Rust dependencies of the Cargo workspace (backend, CLI, client, FFI) —
+  # same minor/patch vs. major split as npm above.
+  - package-ecosystem: "cargo"
+    directory: "/"
     schedule:
       interval: "weekly"
     groups:
-      pip-minor-patch:
+      cargo-minor-patch:
         update-types: ["minor", "patch"]
-      pip-major:
+      cargo-major:
         update-types: ["major"]
 
-  # The GitHub Actions themselves (actions/checkout, setup-python, ...) used
+  # The GitHub Actions themselves (actions/checkout, setup-node, ...) used
   # in .github/workflows/ci.yml — these go stale too, and an outdated action
   # can be its own supply-chain risk. Few enough that one group for
   # everything is fine, no minor/major split needed.

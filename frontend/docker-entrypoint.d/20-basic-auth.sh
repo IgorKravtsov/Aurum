@@ -2,7 +2,7 @@
 # Runs automatically before nginx starts (official nginx image convention:
 # every executable script in /docker-entrypoint.d/ is sourced on boot).
 #
-# Aurum's backend has no login system by design (see backend/app/main.py) —
+# Aurum's backend has no login system by design (see `build_app` in crates/aurum-server/src/lib.rs) —
 # it's built for one person self-hosting their own instance, not a
 # multi-tenant service. That means whoever can reach this container can
 # read, edit, and delete all financial data with no password at all. This

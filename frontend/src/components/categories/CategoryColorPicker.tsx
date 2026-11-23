@@ -8,7 +8,7 @@ interface CategoryColorPickerProps {
 
 // The same 8-slot colorblind-safe categorical palette the seeded default
 // categories and every chart in the app already use — see
-// backend/app/db/seed.py and index.css's --series-* tokens.
+// crates/aurum-server/src/db/seed.rs and index.css's --series-* tokens.
 const PRESET_COLORS = [
   "#2a78d6",
   "#eb6834",

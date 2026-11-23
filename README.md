@@ -86,7 +86,7 @@ Export your entire dataset — accounts, transactions, assets, budgets, goals �
 
 ## 🚀 Getting Started
 
-Aurum ships as three containers — Postgres, a FastAPI backend, and an nginx-served frontend — wired together with Docker Compose. No local Python, Node, or Postgres installation needed; Docker is the only requirement.
+Aurum ships as three containers — Postgres, a Rust backend, and an nginx-served frontend — wired together with Docker Compose. No local Rust, Node, or Postgres installation needed; Docker is the only requirement.
 
 ### 1. Install Docker
 
@@ -191,11 +191,13 @@ or open `/api/docs` on your running instance for interactive Swagger docs.
 
 ### Command-line client
 
-The repository also includes a standalone Node.js CLI. It runs on the host and talks to the public
-`/api` URL, so it does not become part of either Docker image. Node.js 20 or newer is required.
+The repository also includes a standalone command-line client written in Rust (`crates/aurum-cli`). It
+runs on the host and talks to the public `/api` URL, so it does not become part of either Docker image.
+Download a prebuilt `aurum` binary for Linux or macOS from the GitHub Releases page, or build it with
+Rust 1.88 or newer:
 
 ```bash
-npm install -g ./cli
+cargo install --locked --path crates/aurum-cli
 aurum health
 aurum accounts list
 aurum transactions list --year 2026 --month 9
@@ -217,14 +219,15 @@ aurum --api-base-url https://finance.example.com/api accounts list
 
 Run `aurum --help` for human-readable help or `aurum skills get core --full` for the complete,
 version-matched agent guide. `./install-skill.sh` installs a small discovery skill into both
-`~/.agents/skills` and `~/.claude/skills`. To package the current source and install or update the
-CLI and discovery skill on the `pi-srv` SSH host without `sudo`, run:
+`~/.agents/skills` and `~/.claude/skills`. To install or update the CLI (a prebuilt release binary, or
+a build from source when no release exists) and the discovery skill on the `pi-srv` SSH host without
+`sudo`, run:
 
 ```bash
 ./install-cli-pi-srv.sh
 ```
 
-A different SSH host can be passed as the first argument. See **[cli/README.md](cli/README.md)** for
+A different SSH host can be passed as the first argument. See **[crates/aurum-cli/README.md](crates/aurum-cli/README.md)** for
 authentication and payload examples.
 
 ## 🔒 Security & Self-Hosting
@@ -267,9 +270,9 @@ If you find a security issue, please open a private report via GitHub's Security
 ## 🛠️ Tech Stack
 
 - **Frontend:** React 19, TypeScript, Vite, Tailwind CSS, React Router, TanStack Query, Recharts
-- **Backend:** FastAPI, SQLAlchemy 2.0 (async), Alembic, Pydantic v2
+- **Backend:** Rust (axum, sqlx) — `crates/aurum-server`; the REST API, database schema and backup format are unchanged from the FastAPI implementation of the 1.x releases
 - **Database:** PostgreSQL
-- **Deployment:** Docker Compose (Postgres + FastAPI + nginx-served SPA)
+- **Deployment:** Docker Compose (Postgres + Rust + nginx-served SPA)
 
 ## 🤝 Contributing
 

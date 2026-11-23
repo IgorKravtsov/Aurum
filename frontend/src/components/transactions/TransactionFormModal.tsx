@@ -77,7 +77,7 @@ export function TransactionFormModal({ open, onClose, transaction }: Transaction
     if (transaction) {
       const hasSplits = transaction.splits.length > 0;
       // A split's categories always share one parent (see
-      // routes/transactions.py's _build_splits) — derive that shared base
+      // the former Python backend's routes/transactions.py's _build_splits) — derive that shared base
       // from whichever split's category is still live. If every split's
       // category was since deleted, there's nothing to derive from; the
       // base field is left blank and the user has to pick one again.
@@ -158,7 +158,7 @@ export function TransactionFormModal({ open, onClose, transaction }: Transaction
   // The category select becomes the split's "base" category while
   // splitting — restricted to top-level categories — and each split row can
   // only pick that base itself or one of its direct children (see
-  // routes/transactions.py's _build_splits: a split's categories always
+  // the former Python backend's routes/transactions.py's _build_splits: a split's categories always
   // share one parent).
   const topLevelCategories = relevantCategories.filter((category) => !category.indented);
   const baseChildCategories = kindCategories.filter((category) => category.parent_id === Number(form.category_id));

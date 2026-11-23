@@ -7,8 +7,8 @@ from another program (a bank-sync job, a bot, a shortcut on your phone), or pull
 own tools.
 
 It is a plain JSON REST API, callable with `curl`, any HTTP client library, or tools like
-Postman/Insomnia. The repository also includes a standalone Node.js command-line client in `cli/`;
-after `npm install -g ./cli`, run `aurum --help` or `aurum skills get core --full`.
+Postman/Insomnia. The repository also includes a standalone command-line client in `crates/aurum-cli`;
+after installing it (see its README), run `aurum --help` or `aurum skills get core --full`.
 
 > Interactive, always-up-to-date docs are also built into the backend itself: once your instance is
 > running, open `http://<host>:<port>/api/docs` (Swagger UI) or `http://<host>:<port>/api/redoc`
@@ -37,7 +37,7 @@ after `npm install -g ./cli`, run `aurum --help` or `aurum skills get core --ful
 
 ## Base URL & Authentication
 
-Aurum ships as three containers (Postgres, FastAPI backend, nginx-served frontend). The frontend
+Aurum ships as three containers (Postgres, Rust backend, nginx-served frontend). The frontend
 container reverse-proxies `/api/*` straight through to the backend, so **the API and the web UI share
 the same host and port** — whatever you set `AURUM_WEB_PORT` to in `.env` (default `3000`):
 
@@ -107,7 +107,7 @@ Standard HTTP status codes:
 | `422` | Request body failed schema validation (wrong type, missing required field, out-of-range value) |
 | `503` | An FX rate was not cached locally and NBP is temporarily unavailable |
 
-Error bodies follow FastAPI's default shape:
+Error bodies keep the shape FastAPI used in the 1.x releases (`detail`):
 
 ```json
 { "detail": "Category 'Salary' is a income category and cannot be used for a expense transaction" }

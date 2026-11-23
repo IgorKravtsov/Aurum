@@ -26,7 +26,7 @@ interface CategoryBreakdownModalProps {
  * subcategories (or many split-across purchases) would otherwise push the
  * Dashboard's donut/list layout out of alignment as rows grow taller. Shared
  * between the Dashboard breakdown and the Reports category ranking, which
- * expose the same shape (see services/category_rollup.py's
+ * expose the same shape (see the former Python backend's services/category_rollup.py's
  * CategoryRollupChildItem). */
 export function CategoryBreakdownModal({
   open,

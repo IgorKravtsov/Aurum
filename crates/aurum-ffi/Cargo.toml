@@ -1,0 +1,41 @@
+[package]
+name = "aurum-ffi"
+description = "UniFFI bindings (Swift/Kotlin) over aurum-client and aurum-domain"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[lib]
+# `cdylib` — Android (.so); `staticlib` — iOS (XCFramework); `lib` — Rust
+# tests and the bindgen binary below.
+crate-type = ["lib", "cdylib", "staticlib"]
+
+[features]
+default = ["bindgen"]
+# Pulls in uniffi's CLI (clap, cargo_metadata) for the `uniffi-bindgen`
+# binary. Cross builds for iOS/Android pass `--no-default-features` so these
+# host-only dependencies are not compiled for the device.
+bindgen = ["uniffi/cli"]
+
+[[bin]]
+name = "uniffi-bindgen"
+path = "src/bin/uniffi-bindgen.rs"
+required-features = ["bindgen"]
+
+[dependencies]
+# Not `workspace = true`: mobile builds need the `ring` TLS provider instead
+# of aws-lc-rs (hard to cross-compile), and a workspace dependency cannot
+# switch off aurum-client's default `tls-aws-lc-rs` feature.
+aurum-client = { path = "../aurum-client", default-features = false, features = ["tls-ring"] }
+aurum-domain = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+uniffi = { version = "0.32.2", features = ["tokio"] }
+
+[dev-dependencies]
+axum = { workspace = true }
+tokio = { workspace = true }
+
+[lints]
+workspace = true

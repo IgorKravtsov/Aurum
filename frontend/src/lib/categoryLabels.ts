@@ -1,6 +1,6 @@
 import { t, type TranslationKey } from "@/lib/i18n";
 
-// Maps the exact seeded English category name (backend/app/db/seed.py) to
+// Maps the exact seeded English category name (crates/aurum-server/src/db/seed.rs) to
 // its translation key, so the fixed default set reads in the user's chosen
 // language regardless of what the DB literally stores. Categories created
 // through the category-management UI (CategoriesPage) aren't in this map —

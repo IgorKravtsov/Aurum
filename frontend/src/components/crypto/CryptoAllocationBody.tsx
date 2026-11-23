@@ -10,7 +10,7 @@ interface CryptoAllocationBodyProps {
 }
 
 // Fixed categorical order, same 8-slot ramp the rest of the app already
-// validated (see net_worth_service.py's _CLASS_META comment) — a coin never
+// validated (see the former Python backend's net_worth_service.py's _CLASS_META comment) — a coin never
 // gets a freshly generated hue. Only the first 7 get their own color; an 8th+
 // coin folds into "Other" (--series-other) rather than cycling back through
 // the ramp, per the dataviz skill's categorical-color rule.
